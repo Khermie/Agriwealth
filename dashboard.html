@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | AgriWealth</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="dashboard.html" class="logo">AgriWealth</a>
+      <button class="menu-btn" type="button" aria-label="Open navigation">Menu</button>
+      <div class="nav-links">
+        <a href="investment.html">Invest</a>
+        <a href="payment.html">Deposit</a>
+        <a href="profile.html">Profile</a>
+        <button class="btn btn-outline" onclick="window.logout()">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-shell container">
+    <section class="dashboard-hero glass anim">
+      <div>
+        <span class="eyebrow">Portfolio Command Center</span>
+        <h1 class="page-title">Your agriculture wealth dashboard.</h1>
+        <p class="page-sub">Monitor capital, active assets, deposits, and farm growth from one polished workspace.</p>
+        <div class="hero-cta">
+          <a href="investment.html" class="btn">Add Investment</a>
+          <a href="payment.html" class="btn btn-outline">Deposit Funds</a>
+        </div>
+      </div>
+      <div class="dashboard-visual" aria-hidden="true">
+        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=900&q=80" alt="">
+        <div class="floating-badge">Live Portfolio</div>
+      </div>
+    </section>
+
+    <section class="grid grid-3 metric-grid" aria-label="Dashboard metrics">
+      <article class="glass metric-card anim">
+        <span class="metric-label">Wallet Balance</span>
+        <h2 id="walletBal">GHS 0.00</h2>
+        <div class="mini-trend"><span></span><span></span><span></span><span></span></div>
+      </article>
+      <article class="glass metric-card anim anim-delay-1">
+        <span class="metric-label">Total Invested</span>
+        <h2 id="portfolioVal">GHS 0.00</h2>
+        <div class="progress"><div class="progress-fill" style="width:72%"></div></div>
+      </article>
+      <article class="glass metric-card anim anim-delay-2">
+        <span class="metric-label">Active Assets</span>
+        <h2 id="activeCount">0</h2>
+        <div class="asset-dots"><span></span><span></span><span></span><span></span><span></span></div>
+      </article>
+    </section>
+
+    <section class="grid grid-2 dashboard-grid">
+      <article class="glass panel-card anim">
+        <div class="panel-head">
+          <div><span class="eyebrow">Activity</span><h3>Recent transactions</h3></div>
+          <a href="payment.html" class="tiny-link">Deposit</a>
+        </div>
+        <div id="txContainer" class="activity-list">
+          <div class="empty-state">Recent deposits and investments will appear here.</div>
+        </div>
+      </article>
+
+      <article class="glass panel-card anim anim-delay-1">
+        <div class="panel-head">
+          <div><span class="eyebrow">Growth</span><h3>Portfolio trajectory</h3></div>
+          <span class="status-pill">Projected</span>
+        </div>
+        <div class="chart-container premium-chart">
+          <svg class="chart-svg" viewBox="0 0 500 220" role="img" aria-label="Portfolio growth chart">
+            <defs>
+              <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#52b788" stop-opacity="0.7"/>
+                <stop offset="100%" stop-color="#52b788" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <polygon fill="url(#lg)" points="20,170 80,138 140,150 200,92 260,106 320,64 380,74 440,38 500,50 500,220 20,220"/>
+            <polyline fill="none" stroke="#e9b84a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" points="20,170 80,138 140,150 200,92 260,106 320,64 380,74 440,38 500,50"/>
+          </svg>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid grid-3 quick-actions" aria-label="Quick actions">
+      <a href="investment.html" class="glass action-card">
+        <span>Explore Assets</span>
+        <strong>Livestock, aquaculture, crops</strong>
+      </a>
+      <a href="payment.html" class="glass action-card">
+        <span>Secure Deposit</span>
+        <strong>Card and mobile money</strong>
+      </a>
+      <a href="profile.html" class="glass action-card">
+        <span>Profile & KYC</span>
+        <strong>Identity and settings</strong>
+      </a>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth } from './js/firebase-config.js';
+    import { watchUser, watchTransactions, watchNotifications } from './js/firestore.js';
+    import { logoutUser } from './js/auth.js';
+    import { initRouter } from './js/router.js';
+    window.logout = logoutUser;
+    initRouter();
+    document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
+    auth.onAuthStateChanged(u => {
+      if (!u) return;
+      watchUser(u.uid, d => {
+        if (d) {
+          document.getElementById('walletBal').textContent = `GHS ${d.walletBalance.toFixed(2)}`;
+          document.getElementById('portfolioVal').textContent = `GHS ${d.totalInvestment.toFixed(2)}`;
+          document.getElementById('activeCount').textContent = d.activeInvestmentCount || 0;
+        }
+      });
+      watchTransactions(u.uid, txs => {
+        document.getElementById('txContainer').innerHTML = txs.slice(0,5).map(t => `<div class="activity-row"><div><strong>${t.type}</strong><br><small>${new Date(t.createdAt?.seconds*1000).toLocaleDateString()}</small></div><div class="${t.type === 'deposit' ? 'positive' : 'warning'}">${t.type === 'investment' ? '-' : '+'}GHS ${t.amount}</div></div>`).join('');
+      });
+    });
+  </script>
+</body>
+</html>

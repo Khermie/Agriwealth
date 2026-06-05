@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | AgriWealth</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-body">
+  <main class="auth-shell">
+    <section class="auth-art">
+      <a href="index.html" class="logo">AgriWealth</a>
+      <div class="auth-art-copy">
+        <span class="eyebrow">Welcome Back</span>
+        <h1>Return to your agriculture portfolio.</h1>
+        <p>Track farm-backed investments, deposits, and growth from a premium dashboard built for clarity.</p>
+      </div>
+    </section>
+    <section class="auth-panel glass">
+      <span class="eyebrow">Secure Login</span>
+      <h2 class="auth-title">Sign in to AgriWealth</h2>
+      <form id="loginForm">
+        <div class="input-group"><input type="email" class="input" placeholder="Email" required id="email"></div>
+        <div class="input-group"><input type="password" class="input" placeholder="Password" required id="pass"><button type="button" class="toggle-eye">Show</button></div>
+        <button type="submit" class="btn auth-submit">Sign In</button>
+      </form>
+      <div class="social-row">
+        <button class="btn btn-outline" onclick="window.socialLogin('google')">Google</button>
+        <button class="btn btn-outline" onclick="window.socialLogin('facebook')">Facebook</button>
+      </div>
+      <p class="auth-link">No account? <a href="signup.html">Sign Up</a></p>
+    </section>
+  </main>
+  <script type="module">
+    import { loginUser, loginWithProvider } from './js/auth.js';
+    window.socialLogin = loginWithProvider;
+    document.querySelector('.toggle-eye').onclick = e => {
+      const i = e.target.previousElementSibling;
+      i.type = i.type === 'password' ? 'text' : 'password';
+      e.target.textContent = i.type === 'password' ? 'Show' : 'Hide';
+    };
+    document.getElementById('loginForm').onsubmit = async e => {
+      e.preventDefault();
+      if (await loginUser(document.getElementById('email').value, document.getElementById('pass').value)) window.location.href = 'dashboard.html';
+    };
+    import { initRouter } from './js/router.js';
+    initRouter();
+  </script>
+</body>
+</html>

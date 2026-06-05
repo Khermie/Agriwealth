@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile | AgriWealth</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="dashboard.html" class="logo">AgriWealth</a>
+      <button class="menu-btn" type="button" aria-label="Open navigation">Menu</button>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="investment.html">Invest</a>
+        <button class="btn btn-outline" onclick="window.logout()">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-shell container profile-shell">
+    <section class="profile-hero glass anim">
+      <div class="profile-avatar">
+        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=500&q=80" alt="Investor profile">
+      </div>
+      <div>
+        <span class="eyebrow">Investor Profile</span>
+        <h1 class="page-title">Profile, KYC, and account controls.</h1>
+        <p class="page-sub">Manage your identity details and preferences from a refined settings surface.</p>
+      </div>
+    </section>
+
+    <section class="grid grid-2 profile-grid">
+      <article class="glass panel-card">
+        <div class="panel-head">
+          <div><span class="eyebrow">Personal Details</span><h3>Profile card</h3></div>
+          <span class="status-pill">Editable</span>
+        </div>
+        <form id="profileForm">
+          <div class="input-group"><input type="text" class="input" placeholder="First Name" id="pFirst"></div>
+          <div class="input-group"><input type="tel" class="input" placeholder="Phone" id="pPhone"></div>
+          <div class="input-group"><label class="input-label">Upload Profile Image</label><input type="file" class="input" accept="image/*" id="pImg"></div>
+          <button type="submit" class="btn auth-submit">Save Profile</button>
+        </form>
+      </article>
+
+      <article class="glass panel-card">
+        <div class="panel-head">
+          <div><span class="eyebrow">Verification</span><h3>KYC status</h3></div>
+          <span class="status-pill amber">Pending ready</span>
+        </div>
+        <form id="kycForm">
+          <div class="kyc-card">
+            <strong>Identity document</strong>
+            <span>Upload ID, passport, or verification PDF.</span>
+          </div>
+          <div class="input-group"><label class="input-label">Upload ID/Passport</label><input type="file" class="input" accept="image/*,application/pdf" id="kycFile" required></div>
+          <button type="submit" class="btn btn-outline auth-submit">Submit KYC</button>
+        </form>
+      </article>
+
+      <article class="glass panel-card">
+        <div class="panel-head">
+          <div><span class="eyebrow">Security</span><h3>Display settings</h3></div>
+        </div>
+        <label class="toggle-row">
+          <span><strong>Dark Mode</strong><small>Switch the premium theme to a deeper dashboard look.</small></span>
+          <input type="checkbox" id="darkToggle">
+        </label>
+      </article>
+
+      <article class="glass panel-card">
+        <div class="panel-head">
+          <div><span class="eyebrow">Payment Methods</span><h3>Funding options</h3></div>
+        </div>
+        <div class="settings-list">
+          <div><span>Card checkout</span><strong>Paystack</strong></div>
+          <div><span>Mobile money</span><strong>Available</strong></div>
+          <div><span>Notifications</span><strong>Enabled</strong></div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth } from './js/firebase-config.js';
+    import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { uploadImage } from './js/storage.js';
+    import { showToast } from './js/utils.js';
+    import { logoutUser } from './js/auth.js';
+    import { initRouter } from './js/router.js';
+    window.logout = logoutUser;
+    initRouter();
+    document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
+    document.getElementById('darkToggle').onchange = e => {
+      document.documentElement.className = e.target.checked ? 'dark' : '';
+      localStorage.setItem('theme', document.documentElement.className);
+    };
+    if (localStorage.getItem('theme') === 'dark') document.getElementById('darkToggle').checked = true;
+    document.getElementById('profileForm').onsubmit = async e => {
+      e.preventDefault();
+      const uid = auth.currentUser.uid;
+      try {
+        if (document.getElementById('pImg').files[0]) {
+          const url = await uploadImage(uid, document.getElementById('pImg').files[0]);
+          await updateDoc(doc(db, 'users', uid), { profileImage: url });
+        }
+        await updateDoc(doc(db, 'users', uid), { firstName: document.getElementById('pFirst').value, phone: document.getElementById('pPhone').value });
+        showToast('Profile saved!', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+    document.getElementById('kycForm').onsubmit = async e => {
+      e.preventDefault();
+      const uid = auth.currentUser.uid;
+      try {
+        const url = await uploadImage(uid, document.getElementById('kycFile').files[0]);
+        await updateDoc(doc(db, 'users', uid), { kycDocument: url, kycStatus: 'pending' });
+        showToast('KYC submitted. Awaiting review.', 'success');
+      } catch (err) {
+        showToast('Upload failed', 'error');
+      }
+    };
+  </script>
+</body>
+</html>

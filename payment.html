@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deposit | AgriWealth</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="dashboard.html" class="logo">AgriWealth</a>
+      <button class="menu-btn" type="button" aria-label="Open navigation">Menu</button>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="investment.html">Invest</a>
+        <a href="profile.html">Profile</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="payment-shell container">
+    <section class="payment-card glass anim">
+      <div class="payment-visual">
+        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=900&q=80" alt="Secure payment desk">
+        <div class="secure-badge">Encrypted Checkout</div>
+      </div>
+      <div class="payment-form-wrap">
+        <span class="eyebrow">Wallet Funding</span>
+        <h1 class="page-title">Add funds securely.</h1>
+        <p class="page-sub">Choose a payment method and continue to the existing Paystack checkout experience.</p>
+        <form id="paymentForm">
+          <div class="input-group"><input type="number" class="input" placeholder="Amount (GHS)" id="payAmount" required min="100"></div>
+          <div class="method-grid">
+            <button type="button" class="method-btn active" data-method="card">Card</button>
+            <button type="button" class="method-btn" data-method="momo">Mobile Money</button>
+          </div>
+          <div class="payment-progress" aria-hidden="true"><span></span><span></span><span></span></div>
+          <button type="submit" class="btn auth-submit">Proceed to Paystack</button>
+        </form>
+        <a href="dashboard.html" class="btn btn-outline back-link">Back to Dashboard</a>
+      </div>
+    </section>
+  </main>
+  <script type="module">
+    import { auth } from './js/firebase-config.js';
+    import { openPaystack } from './js/paystack.js';
+    import { initRouter } from './js/router.js';
+    initRouter();
+    document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
+    let method = 'card';
+    document.querySelectorAll('.method-btn').forEach(b => b.onclick = () => {
+      document.querySelectorAll('.method-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      method = b.dataset.method;
+    });
+    document.getElementById('paymentForm').onsubmit = e => {
+      e.preventDefault();
+      const amt = parseFloat(document.getElementById('payAmount').value);
+      openPaystack(amt, auth.currentUser?.email, null, { paymentType:'deposit', method });
+    };
+  </script>
+</body>
+</html>

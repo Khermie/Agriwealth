@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signup | AgriWealth</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-body">
+  <main class="auth-shell signup-shell">
+    <section class="auth-art signup-art">
+      <a href="index.html" class="logo">AgriWealth</a>
+      <div class="auth-art-copy">
+        <span class="eyebrow">Start Growing</span>
+        <h1>Create a premium agriculture investment account.</h1>
+        <p>Join a refined fintech experience designed around productive farms and transparent portfolio movement.</p>
+      </div>
+    </section>
+    <section class="auth-panel glass">
+      <span class="eyebrow">Investor Onboarding</span>
+      <h2 class="auth-title">Create Account</h2>
+      <form id="signupForm">
+        <div class="form-grid-2">
+          <div class="input-group"><input type="text" class="input" placeholder="First Name" required id="first"></div>
+          <div class="input-group"><input type="text" class="input" placeholder="Last Name" required id="last"></div>
+        </div>
+        <div class="input-group"><input type="email" class="input" placeholder="Email" required id="email"></div>
+        <div class="input-group"><input type="password" class="input" placeholder="Password" required id="pass"><button type="button" class="toggle-eye">Show</button></div>
+        <div class="strength"><div class="strength-bar"></div></div>
+        <div class="form-grid-2">
+          <div class="input-group"><input type="tel" class="input" placeholder="Phone" id="phone"></div>
+          <div class="input-group"><select class="input" id="country"><option value="">Select Country</option><option>Ghana</option><option>Nigeria</option><option>Kenya</option><option>South Africa</option></select></div>
+        </div>
+        <button type="submit" class="btn auth-submit">Sign Up</button>
+      </form>
+      <p class="auth-link">Have an account? <a href="login.html">Login</a></p>
+    </section>
+  </main>
+  <script type="module">
+    import { signupUser } from './js/auth.js';
+    const p = document.getElementById('pass');
+    const bar = document.querySelector('.strength-bar');
+    document.querySelector('.toggle-eye').onclick = e => {
+      p.type = p.type === 'password' ? 'text' : 'password';
+      e.target.textContent = p.type === 'password' ? 'Show' : 'Hide';
+    };
+    p?.addEventListener('input', () => {
+      let s = (p.value.length > 5) + (/[A-Z]/.test(p.value)) + (/[0-9]/.test(p.value));
+      bar.style.width = `${s * 33}%`;
+      bar.style.background = ['#e74c3c', '#f39c12', '#52b788'][s];
+    });
+    document.getElementById('signupForm').onsubmit = async e => {
+      e.preventDefault();
+      const ok = await signupUser(document.getElementById('first').value, document.getElementById('last').value, document.getElementById('email').value, p.value, document.getElementById('phone').value, document.getElementById('country').value);
+      if (ok) window.location.href = 'login.html';
+    };
+    import { initRouter } from './js/router.js';
+    initRouter();
+  </script>
+</body>
+</html>

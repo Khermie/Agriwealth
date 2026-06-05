@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invest | AgriWealth</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="dashboard.html" class="logo">AgriWealth</a>
+      <button class="menu-btn" type="button" aria-label="Open navigation">Menu</button>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="payment.html">Deposit</a>
+        <a href="profile.html">Profile</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-shell container">
+    <section class="market-hero glass anim">
+      <div>
+        <span class="eyebrow">Investment Marketplace</span>
+        <h1 class="page-title">Curated farm assets with premium visibility.</h1>
+        <p class="page-sub">Choose agriculture-backed opportunities across animals, aquaculture, and crops.</p>
+      </div>
+      <div class="asset-marquee" aria-hidden="true">
+        <span>Dairy Cow</span><span>Goat</span><span>Poultry</span><span>Pig</span><span>Catfish</span><span>Snail</span><span>Crop</span>
+      </div>
+    </section>
+
+    <section class="featured-strip" aria-label="Featured livestock">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=700&q=80" alt="Dairy cattle">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1527153857715-3908f2bae5e8?auto=format&fit=crop&w=700&q=80" alt="Poultry farm">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=700&q=80" alt="Crop field">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=700&q=80" alt="Fish farming">
+    </section>
+
+    <section>
+      <div class="section-head compact-head">
+        <span class="eyebrow">Available Investments</span>
+        <h2 class="section-title">Select an asset to invest.</h2>
+      </div>
+      <div id="investGrid" class="grid grid-3 invest-grid">
+        <!-- Cards injected by JS -->
+      </div>
+    </section>
+  </main>
+
+  <div id="investModal" class="modal">
+    <div class="glass modal-content invest-modal-card">
+      <span class="eyebrow">Confirm Allocation</span>
+      <h3>Invest in <span id="modalAsset"></span></h3>
+      <p class="modal-copy">Enter the amount you want to allocate to this agriculture asset.</p>
+      <input type="number" class="input" placeholder="Amount (GHS)" id="investAmount" min="500">
+      <button class="btn" style="width:100%;" onclick="window.confirmInv()">Confirm Investment</button>
+      <button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="document.getElementById('investModal').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth } from './js/firebase-config.js';
+    import { openPaystack } from './js/paystack.js';
+    import { showToast } from './js/utils.js';
+    import { initRouter } from './js/router.js';
+    initRouter();
+    document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
+    const assets = [
+      {name:'Dairy Cow', roi:'18%', dur:'8m', risk:'Low', img:'https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=900&q=80', status:'High demand', progress:68},
+      {name:'Goat', roi:'22%', dur:'6m', risk:'Med', img:'https://images.unsplash.com/photo-1527153857715-3908f2bae5e8?auto=format&fit=crop&w=900&q=80', status:'Open', progress:42},
+      {name:'Poultry', roi:'14%', dur:'4m', risk:'Low', img:'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=900&q=80', status:'Filling fast', progress:74},
+      {name:'Pig', roi:'20%', dur:'7m', risk:'Med', img:'https://images.unsplash.com/photo-1526160691835-506cc76a880e?auto=format&fit=crop&w=900&q=80', status:'Open', progress:51},
+      {name:'Catfish', roi:'25%', dur:'5m', risk:'Med', img:'https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=900&q=80', status:'Premium', progress:63},
+      {name:'Snail', roi:'16%', dur:'6m', risk:'Low', img:'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=900&q=80', status:'New cycle', progress:35},
+      {name:'Crop Investment', roi:'19%', dur:'6m', risk:'Low', img:'https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=900&q=80', status:'Seasonal', progress:58}
+    ];
+    document.getElementById('investGrid').innerHTML = assets.map((a, i) => `<article class="glass invest-card anim anim-delay-${Math.min(i, 4)}"><div class="invest-media"><img loading="lazy" decoding="async" src="${a.img}" alt="${a.name} investment"><div class="roi-badge">${a.roi} ROI</div><div class="availability">${a.status}</div></div><div class="invest-body"><div class="invest-title-row"><h3>${a.name}</h3><span>${a.risk} risk</span></div><p>Duration ${a.dur}. Professionally presented asset cycle with visible funding momentum.</p><div class="progress"><div class="progress-fill" style="width:${a.progress}%"></div></div><div class="invest-meta"><span>${a.progress}% allocated</span><span>Min GHS 500</span></div><button class="btn" style="width:100%;" onclick="window.openModal('${a.name}')">Invest Now</button></div></article>`).join('');
+    window.openModal = n => {
+      document.getElementById('modalAsset').textContent = n;
+      document.getElementById('investModal').classList.add('open');
+    };
+    window.confirmInv = async () => {
+      const amt = parseFloat(document.getElementById('investAmount').value);
+      const type = document.getElementById('modalAsset').textContent;
+      if (!amt || amt < 500) return showToast('Minimum GHS 500', 'warning');
+      await openPaystack(amt, auth.currentUser?.email, () => {
+        document.getElementById('investModal').classList.remove('open');
+      }, { paymentType:'investment', animalType:type, duration:6, roi:15, method:'paystack' });
+    };
+  </script>
+</body>
+</html>
