@@ -10,6 +10,9 @@ firebase-debug.*.log*
 # Firebase cache
 .firebase/
 
+# Firebase default hosting page directory (Vercel serves from root)
+public/
+
 # Firebase config
 
 # Uncomment this if you'd like others to create their own Firebase project.
