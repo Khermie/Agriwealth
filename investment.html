@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invest | AgriWealth</title>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
   <style>
     .invest-card {
@@ -199,10 +203,10 @@
     </section>
 
     <section class="featured-strip" aria-label="Featured livestock">
-      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=700&q=80" alt="Poultry farm">
-      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=700&q=80" alt="Fish farming">
-      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1616109259043-fd30a7663a5d?auto=format&fit=crop&w=700&q=80" alt="Pig farming">
-      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=700&q=80" alt="Crop field">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Poultry farm">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Fish farming">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1616109259043-fd30a7663a5d?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Pig farming">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Crop field">
     </section>
 
     <section>
@@ -261,19 +265,19 @@
     
     // ✅ CORRECT Unsplash CDN image URLs
     const assetImages = {
-      'Poultry': 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=900&q=80',
-      'Catfish': 'https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=900&q=80',
-      'Pig': 'https://images.unsplash.com/photo-1616109259043-fd30a7663a5d?auto=format&fit=crop&w=900&q=80',
-      'Goat': 'https://images.unsplash.com/photo-1524024973431-2ad916746881?auto=format&fit=crop&w=900&q=80',
-      'Calf': 'https://images.unsplash.com/photo-1604860428762-f55cea62b7a0?auto=format&fit=crop&w=900&q=80',
-      'Snail': 'https://images.unsplash.com/photo-1569534893984-48aec815679b?auto=format&fit=crop&w=900&q=80',
-      'Dairy Cow': 'https://images.unsplash.com/photo-1593768697824-f31b967e6c55?auto=format&fit=crop&w=900&q=80',
-      'Bull': 'https://images.unsplash.com/photo-1506809494389-a68c51c9e6a1?auto=format&fit=crop&w=900&q=80',
-      'Buffalo': 'https://images.unsplash.com/photo-1603966474815-85d21585ffb9?auto=format&fit=crop&w=900&q=80',
-      'Crop Investment': 'https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=900&q=80'
+      'Poultry': 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=700&q=75',
+      'Catfish': 'https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=700&q=75',
+      'Pig': 'https://images.unsplash.com/photo-1616109259043-fd30a7663a5d?auto=format&fit=crop&w=700&q=75',
+      'Goat': 'https://images.unsplash.com/photo-1524024973431-2ad916746881?auto=format&fit=crop&w=700&q=75',
+      'Calf': 'https://images.unsplash.com/photo-1604860428762-f55cea62b7a0?auto=format&fit=crop&w=700&q=75',
+      'Snail': 'https://images.unsplash.com/photo-1569534893984-48aec815679b?auto=format&fit=crop&w=700&q=75',
+      'Dairy Cow': 'https://images.unsplash.com/photo-1593768697824-f31b967e6c55?auto=format&fit=crop&w=700&q=75',
+      'Bull': 'https://images.unsplash.com/photo-1506809494389-a68c51c9e6a1?auto=format&fit=crop&w=700&q=75',
+      'Buffalo': 'https://images.unsplash.com/photo-1603966474815-85d21585ffb9?auto=format&fit=crop&w=700&q=75',
+      'Crop Investment': 'https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=700&q=75'
     };
 
-    const fallbackImg = 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=900&q=80';
+    const fallbackImg = 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=700&q=75';
 
     // ✅ Investment plans with durationHours for precise maturity calculation
     const assets = [

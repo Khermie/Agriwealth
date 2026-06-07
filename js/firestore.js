@@ -13,15 +13,8 @@ export function watchNotifications(uid, cb) {
 }
 
 // ✅ Watch all active investments for a user
+// Using a single listener that covers both active and completed
 export function watchInvestments(uid, cb) {
-  return onSnapshot(
-    query(collection(db, 'investments'), where('userId', '==', uid), orderBy('createdAt', 'desc')),
-    s => cb(s.docs.map(d => ({ id: d.id, ...d.data() })))
-  );
-}
-
-// ✅ Watch all investments (including completed) for chart data
-export function watchAllInvestments(uid, cb) {
   return onSnapshot(
     query(collection(db, 'investments'), where('userId', '==', uid), orderBy('createdAt', 'desc')),
     s => cb(s.docs.map(d => ({ id: d.id, ...d.data() })))

@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login | AgriWealth</title>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="auth-body">
@@ -22,28 +25,70 @@
       <form id="loginForm">
         <div class="input-group"><input type="email" class="input" placeholder="Email" required id="email"></div>
         <div class="input-group"><input type="password" class="input" placeholder="Password" required id="pass"><button type="button" class="toggle-eye">Show</button></div>
-        <button type="submit" class="btn auth-submit">Sign In</button>
+        <button type="submit" class="btn auth-submit" id="loginBtn">Sign In</button>
       </form>
       <div class="social-row">
-        <button class="btn btn-outline" onclick="window.socialLogin('google')">Google</button>
-        <button class="btn btn-outline" onclick="window.socialLogin('facebook')">Facebook</button>
+        <button class="btn btn-outline social-btn" data-provider="google">Google</button>
+        <button class="btn btn-outline social-btn" data-provider="facebook">Facebook</button>
       </div>
       <p class="auth-link">No account? <a href="signup.html">Sign Up</a></p>
     </section>
   </main>
   <script type="module">
     import { loginUser, loginWithProvider } from './js/auth.js';
-    window.socialLogin = loginWithProvider;
+    import { markRedirecting } from './js/router.js';
+    import { initRouter } from './js/router.js';
+
+    const loginBtn = document.getElementById('loginBtn');
+    const socialBtns = document.querySelectorAll('.social-btn');
+
+    // Toggle password visibility
     document.querySelector('.toggle-eye').onclick = e => {
       const i = e.target.previousElementSibling;
       i.type = i.type === 'password' ? 'text' : 'password';
       e.target.textContent = i.type === 'password' ? 'Show' : 'Hide';
     };
+
+    // ✅ FIX: Disable button during login, prevent race condition with router
     document.getElementById('loginForm').onsubmit = async e => {
       e.preventDefault();
-      if (await loginUser(document.getElementById('email').value, document.getElementById('pass').value)) window.location.href = 'dashboard.html';
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Signing in...';
+
+      try {
+        const success = await loginUser(
+          document.getElementById('email').value,
+          document.getElementById('pass').value
+        );
+        if (success) {
+          // Mark redirecting so router doesn't double-redirect
+          markRedirecting();
+          console.log("[Login] Login successful, redirecting to dashboard");
+          window.location.href = 'dashboard.html';
+        }
+      } finally {
+        // Re-enable only if we're still on the page (redirect didn't happen)
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign In';
+      }
     };
-    import { initRouter } from './js/router.js';
+
+    // ✅ FIX: Disable social buttons during login
+    socialBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const provider = btn.dataset.provider;
+        socialBtns.forEach(b => b.disabled = true);
+        loginBtn.disabled = true;
+        try {
+          await loginWithProvider(provider);
+        } finally {
+          socialBtns.forEach(b => b.disabled = false);
+          loginBtn.disabled = false;
+        }
+      });
+    });
+
+    // Router handles auth-state redirect (already logged in → dashboard)
     initRouter();
   </script>
 </body>

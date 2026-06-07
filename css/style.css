@@ -1112,4 +1112,88 @@ body::before {
   .invest-body { padding: 16px; }
 }
 
+/* =====================
+   Mobile Performance
+   ===================== */
+@media (max-width: 768px) {
+  /* Reduce expensive backdrop-filter on mobile */
+  .glass {
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+  }
+  .glass::before,
+  .glass::after {
+    display: none;
+  }
+  /* Reduce shadow complexity */
+  .glass { box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+  .invest-card:hover { transform: none; box-shadow: none; }
+  .btn:hover { transform: none; filter: none; box-shadow: 0 10px 28px rgba(233,184,74,0.18); }
+  /* Reduce nav blur */
+  nav { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  /* Simpler hero bg - no animation */
+  .hero-bg-layer { animation: none !important; }
+  .float-item { animation: none !important; }
+  .asset-marquee span { animation: none !important; }
+}
+
+/* =====================
+   Skeleton Loaders
+   ===================== */
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.06) 25%,
+    rgba(255,255,255,0.12) 50%,
+    rgba(255,255,255,0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+  color: transparent !important;
+  min-height: 1em;
+  min-width: 3em;
+  overflow: hidden;
+}
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+.skeleton-text.w-75 { width: 75%; }
+.skeleton-text.w-50 { width: 50%; }
+.skeleton-heading {
+  height: 28px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+}
+.skeleton-card {
+  height: 180px;
+  border-radius: var(--radius-lg);
+}
+.skeleton-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+}
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Page fade-in transition */
+.page-content {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+.page-content.loading {
+  opacity: 0.6;
+}
+
+/* Disabled button state */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  filter: none !important;
+}
 

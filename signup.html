@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Signup | AgriWealth</title>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="auth-body">
@@ -31,30 +34,58 @@
           <div class="input-group"><input type="tel" class="input" placeholder="Phone" id="phone"></div>
           <div class="input-group"><select class="input" id="country"><option value="">Select Country</option><option>Ghana</option><option>Nigeria</option><option>Kenya</option><option>South Africa</option></select></div>
         </div>
-        <button type="submit" class="btn auth-submit">Sign Up</button>
+        <button type="submit" class="btn auth-submit" id="signupBtn">Sign Up</button>
       </form>
       <p class="auth-link">Have an account? <a href="login.html">Login</a></p>
     </section>
   </main>
   <script type="module">
     import { signupUser } from './js/auth.js';
+    import { markRedirecting } from './js/router.js';
+    import { initRouter } from './js/router.js';
+
+    const signupBtn = document.getElementById('signupBtn');
     const p = document.getElementById('pass');
     const bar = document.querySelector('.strength-bar');
+
     document.querySelector('.toggle-eye').onclick = e => {
       p.type = p.type === 'password' ? 'text' : 'password';
       e.target.textContent = p.type === 'password' ? 'Show' : 'Hide';
     };
+
     p?.addEventListener('input', () => {
       let s = (p.value.length > 5) + (/[A-Z]/.test(p.value)) + (/[0-9]/.test(p.value));
       bar.style.width = `${s * 33}%`;
       bar.style.background = ['#e74c3c', '#f39c12', '#52b788'][s];
     });
+
+    // ✅ FIX: Disable button during signup, prevent race condition
     document.getElementById('signupForm').onsubmit = async e => {
       e.preventDefault();
-      const ok = await signupUser(document.getElementById('first').value, document.getElementById('last').value, document.getElementById('email').value, p.value, document.getElementById('phone').value, document.getElementById('country').value);
-      if (ok) window.location.href = 'login.html';
+      signupBtn.disabled = true;
+      signupBtn.textContent = 'Creating account...';
+
+      try {
+        const ok = await signupUser(
+          document.getElementById('first').value,
+          document.getElementById('last').value,
+          document.getElementById('email').value,
+          p.value,
+          document.getElementById('phone').value,
+          document.getElementById('country').value
+        );
+        if (ok) {
+          markRedirecting();
+          console.log("[Signup] Account created, redirecting to login");
+          window.location.href = 'login.html';
+        }
+      } finally {
+        signupBtn.disabled = false;
+        signupBtn.textContent = 'Sign Up';
+      }
     };
-    import { initRouter } from './js/router.js';
+
+    // Router handles: already logged in → dashboard
     initRouter();
   </script>
 </body>

@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard | AgriWealth</title>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <style>
     /* Investment Tracking Styles */
     .inv-track-card {
@@ -210,7 +213,7 @@
         </div>
       </div>
       <div class="dashboard-visual" aria-hidden="true">
-        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=900&q=80" alt="">
+        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=800&q=75" width="800" height="500" alt="">
         <div class="floating-badge">Live Portfolio</div>
       </div>
     </section>
@@ -355,6 +358,20 @@
     initRouter();
     document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
 
+    // ✅ Lazy-load Chart.js - only load when dashboard opens, not blocking page render
+    let Chart = null;
+    async function loadChartJS() {
+      if (Chart) return;
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
+      document.head.appendChild(script);
+      await new Promise((resolve, reject) => {
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Failed to load Chart.js'));
+      });
+      Chart = window.Chart;
+    }
+
     // Chart instances
     let growthChart = null;
     let returnChart = null;
@@ -374,130 +391,140 @@
       gridBorder: 'rgba(255,255,255,0.08)'
     };
 
-    Chart.defaults.color = chartColors.pale;
-    Chart.defaults.borderColor = chartColors.gridBorder;
-    Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
-
+    // ✅ Lazy-load Chart.js then initialize charts
+    let chartsInitialized = false;
     function initCharts() {
-      const growthCtx = document.getElementById('growthChart');
-      if (!growthCtx) return;
+      if (chartsInitialized) return;
+      chartsInitialized = true;
 
-      growthChart = new Chart(growthCtx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Portfolio Value',
-            data: [],
-            borderColor: chartColors.gold,
-            backgroundColor: chartColors.goldAlpha,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 3,
-            pointBackgroundColor: chartColors.gold,
-            pointBorderColor: chartColors.gold
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { color: chartColors.grid }, ticks: { maxTicksLimit: 6 } },
-            y: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } }
-          }
-        }
-      });
+      loadChartJS().then(() => {
+        // ✅ Set Chart defaults AFTER Chart.js is loaded (was crashing before)
+        Chart.defaults.color = chartColors.pale;
+        Chart.defaults.borderColor = chartColors.gridBorder;
+        Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
 
-      const returnCtx = document.getElementById('returnChart');
-      returnChart = new Chart(returnCtx, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Invested',
-            data: [],
-            backgroundColor: chartColors.goldAlpha,
-            borderColor: chartColors.gold,
-            borderWidth: 1,
-            borderRadius: 6
-          }, {
-            label: 'Expected Return',
-            data: [],
-            backgroundColor: chartColors.greenAlpha,
-            borderColor: chartColors.green,
-            borderWidth: 1,
-            borderRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
-          scales: {
-            x: { grid: { display: false } },
-            y: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } }
-          }
-        }
-      });
+        const growthCtx = document.getElementById('growthChart');
+        if (!growthCtx) return;
 
-      const historyCtx = document.getElementById('historyChart');
-      historyChart = new Chart(historyCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Active', 'Completed'],
-          datasets: [{
-            data: [0, 0],
-            backgroundColor: [chartColors.goldAlpha, chartColors.greenAlpha],
-            borderColor: [chartColors.gold, chartColors.green],
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { padding: 16, boxWidth: 12 } }
+        growthChart = new Chart(growthCtx, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [{
+              label: 'Portfolio Value',
+              data: [],
+              borderColor: chartColors.gold,
+              backgroundColor: chartColors.goldAlpha,
+              fill: true,
+              tension: 0.4,
+              pointRadius: 3,
+              pointBackgroundColor: chartColors.gold,
+              pointBorderColor: chartColors.gold
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { color: chartColors.grid }, ticks: { maxTicksLimit: 6 } },
+              y: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } }
+            }
           }
-        }
-      });
+        });
 
-      const activeCtx = document.getElementById('activeChart');
-      activeChart = new Chart(activeCtx, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Investment',
-            data: [],
-            backgroundColor: chartColors.goldAlpha,
-            borderColor: chartColors.gold,
-            borderWidth: 1,
-            borderRadius: 6
-          }, {
-            label: 'Return',
-            data: [],
-            backgroundColor: chartColors.greenAlpha,
-            borderColor: chartColors.green,
-            borderWidth: 1,
-            borderRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          indexAxis: 'y',
-          plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
-          scales: {
-            x: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } },
-            y: { grid: { display: false } }
+        const returnCtx = document.getElementById('returnChart');
+        returnChart = new Chart(returnCtx, {
+          type: 'bar',
+          data: {
+            labels: [],
+            datasets: [{
+              label: 'Invested',
+              data: [],
+              backgroundColor: chartColors.goldAlpha,
+              borderColor: chartColors.gold,
+              borderWidth: 1,
+              borderRadius: 6
+            }, {
+              label: 'Expected Return',
+              data: [],
+              backgroundColor: chartColors.greenAlpha,
+              borderColor: chartColors.green,
+              borderWidth: 1,
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
+            scales: {
+              x: { grid: { display: false } },
+              y: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } }
+            }
           }
-        }
-      });
+        });
+
+        const historyCtx = document.getElementById('historyChart');
+        historyChart = new Chart(historyCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Active', 'Completed'],
+            datasets: [{
+              data: [0, 0],
+              backgroundColor: [chartColors.goldAlpha, chartColors.greenAlpha],
+              borderColor: [chartColors.gold, chartColors.green],
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { padding: 16, boxWidth: 12 } }
+            }
+          }
+        });
+
+        const activeCtx = document.getElementById('activeChart');
+        activeChart = new Chart(activeCtx, {
+          type: 'bar',
+          data: {
+            labels: [],
+            datasets: [{
+              label: 'Investment',
+              data: [],
+              backgroundColor: chartColors.goldAlpha,
+              borderColor: chartColors.gold,
+              borderWidth: 1,
+              borderRadius: 6
+            }, {
+              label: 'Return',
+              data: [],
+              backgroundColor: chartColors.greenAlpha,
+              borderColor: chartColors.green,
+              borderWidth: 1,
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
+            scales: {
+              x: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } },
+              y: { grid: { display: false } }
+            }
+          }
+        });
+      }); // ✅ closes loadChartJS().then()
     }
 
+    // ✅ Make updateCharts safe when charts not yet initialized
     function updateCharts(investments) {
       if (!investments || investments.length === 0) return;
+      if (!growthChart) return; // Charts not loaded yet, skip
 
       const active = investments.filter(i => i.status === 'active');
       const completed = investments.filter(i => i.status === 'completed');
@@ -763,6 +790,11 @@
     }
 
     // ✅ Initialize everything on auth
+    // ✅ Cache user data to avoid duplicate reads
+    let userDataCache = null;
+    let userDataCacheTime = 0;
+    const CACHE_TTL = 5000; // 5 seconds
+
     auth.onAuthStateChanged(u => {
       if (!u) return;
 
@@ -770,6 +802,8 @@
 
       watchUser(u.uid, d => {
         if (d) {
+          userDataCache = d;
+          userDataCacheTime = Date.now();
           document.getElementById('walletBal').textContent = `GHS ${d.walletBalance.toFixed(2)}`;
           document.getElementById('portfolioVal').textContent = `GHS ${d.totalInvestment.toFixed(2)}`;
           document.getElementById('activeCount').textContent = d.activeInvestmentCount || 0;
