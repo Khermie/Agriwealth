@@ -746,15 +746,35 @@ body::before {
   overflow: hidden;
 }
 
+/* subtle overlay gradient to preserve premium look */
+.invest-media-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(233,184,74,0.30), transparent 45%),
+    linear-gradient(180deg, rgba(10,15,12,0.10), rgba(10,15,12,0.62));
+  opacity: 0.85;
+  transition: opacity 300ms var(--ease);
+}
+
 .invest-media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 0;
   transition: transform 650ms var(--ease);
+  transform: scale(1.001);
 }
 
 .invest-card:hover .invest-media img { transform: scale(1.08); }
+
+.invest-card:hover .invest-media-overlay { opacity: 0.95; }
+
+@media (max-width: 420px) {
+  .invest-media { height: 210px; }
+}
+
 
 .roi-badge,
 .availability {

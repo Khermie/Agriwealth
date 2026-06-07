@@ -76,8 +76,13 @@ function normalizeOptions(options = {}) {
     paymentType: options.paymentType || options.type || "deposit",
     method: options.method || "paystack",
     animalType: options.animalType || null,
-    duration: Number(options.duration || 6),
-    roi: Number(options.roi || 15)
+    durationHours: Number(options.durationHours || options.duration || 0),
+    minimumInvestment: Number(options.minimumInvestment || 0),
+    baseReturn: Number(options.baseReturn || 0),
+    expectedReturn: Number(options.expectedReturn || 0),
+    profit: Number(options.profit || 0),
+    roiPercent: Number(options.roiPercent || 0),
+    maturityDate: options.maturityDate || null
   };
 }
 
@@ -135,17 +140,29 @@ async function savePaymentToFirestore(payment) {
     });
 
     if (payment.paymentType === "investment") {
+      const maturityMs = Number(payment.durationHours) * 3600000;
+      const calculatedMaturity = payment.maturityDate ? new Date(payment.maturityDate) : new Date(Date.now() + maturityMs);
+      const calculatedExpectedReturn = payment.expectedReturn || ((payment.amount / (payment.minimumInvestment || payment.amount)) * (payment.baseReturn || 0));
+      const calculatedProfit = payment.profit || (calculatedExpectedReturn - payment.amount);
+      const calculatedRoiPercent = payment.roiPercent || ((calculatedProfit / payment.amount) * 100);
+
       t.set(investmentRef, {
         userId: uid,
         animalType: payment.animalType,
         amount: payment.amount,
-        duration: payment.duration,
-        roi: payment.roi,
+        minimumInvestment: payment.minimumInvestment || payment.amount,
+        baseReturn: payment.baseReturn || 0,
+        expectedReturn: calculatedExpectedReturn,
+        profit: calculatedProfit,
+        roiPercent: calculatedRoiPercent,
+        durationHours: Number(payment.durationHours) || 0,
         status: "active",
         paymentMethod: payment.method,
         paymentReference: payment.reference,
+        payoutProcessed: false,
+        startDate: serverTimestamp(),
         createdAt: serverTimestamp(),
-        maturityDate: new Date(Date.now() + payment.duration * 30 * 86400000)
+        maturityDate: calculatedMaturity
       });
 
       t.update(userRef, {
@@ -333,6 +350,13 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
         userId: user.uid,
         paymentType: paymentOptions.paymentType,
         animalType: paymentOptions.animalType,
+        durationHours: paymentOptions.durationHours,
+        minimumInvestment: paymentOptions.minimumInvestment,
+        baseReturn: paymentOptions.baseReturn,
+        expectedReturn: paymentOptions.expectedReturn,
+        profit: paymentOptions.profit,
+        roiPercent: paymentOptions.roiPercent,
+        maturityDate: paymentOptions.maturityDate,
         custom_fields: [
           { display_name: "User ID", variable_name: "user_id", value: user.uid },
           { display_name: "Payment Type", variable_name: "payment_type", value: paymentOptions.paymentType }

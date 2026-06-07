@@ -1,24 +1,17 @@
-# TODO — Frontend UI/UX Premium Upgrade (AgriWealth)
+# TODO (AgriWealth)
 
-## Plan (approved)
-### Files to update (frontend-only)
-- `css/style.css`
-- `index.html`
-- `investment.html`
-- `dashboard.html`
-- `payment.html`
-
-### Core goals
-- Premium fintech + agriculture hybrid visuals (glassmorphism, luxury gradients, high-quality imagery)
-- Preserve all backend/Firebase/auth/firestore logic, APIs, routing, and existing business logic
-
----
-
-## Steps
-- [x] 1) Upgrade `css/style.css` with premium theme primitives, component styles, animations, lazy image patterns
-- [x] 2) Redesign homepage `index.html` (hero + slideshow + stats + features + testimonials + FAQ + CTAs)
-- [ ] 3) Redesign investment grid `investment.html` (card imagery, overlays, badges, progress, upgraded modal UI)
-- [ ] 4) Upgrade dashboard UI `dashboard.html` (premium banner, widgets, timeline/activity feed presentation, animated counters)
-- [ ] 5) Upgrade deposit/wallet UI `payment.html` (banking-style card, premium method buttons, analytics visuals)
-- [ ] 6) Sanity check: verify existing DOM IDs are intact and investment modal flow + dashboard rendering still work
-
+- [ ] Update ONLY investment.html:
+  - [ ] Replace existing plans/data with the exact 10 investment cards + values provided.
+  - [ ] Fix image mapping so each card uses the correct asset (Pig must not show in Dairy Cow, Dairy Cow must show correctly).
+  - [ ] Add image fallback + ensure asset paths are correct.
+  - [ ] Keep existing modal/openModal/confirmInv flow unchanged.
+- [ ] Update ONLY investment card styles in css/style.css:
+  - [ ] Add subtle overlay gradients on card images (preserving premium UI).
+  - [ ] Ensure responsive image sizing.
+  - [ ] Add hover zoom effect on images (if not already correct for investment cards).
+  - [ ] Add safe fallback styles for missing images.
+- [ ] Final verification (manual):
+  - [ ] All cards display correct values.
+  - [ ] All cards display correct images with no broken links.
+  - [ ] Pig and Dairy Cow images are correct.
+  - [ ] No other pages/logic/back-end changes.

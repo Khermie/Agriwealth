@@ -5,6 +5,184 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard | AgriWealth</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    /* Investment Tracking Styles */
+    .inv-track-card {
+      padding: 0;
+      overflow: hidden;
+    }
+    .inv-track-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .inv-track-plan {
+      font-family: var(--font-head);
+      color: var(--cream);
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .inv-track-status {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .inv-track-status.active {
+      background: rgba(82,183,136,0.18);
+      color: var(--bright);
+      border: 1px solid rgba(82,183,136,0.3);
+    }
+    .inv-track-status.completed {
+      background: rgba(233,184,74,0.18);
+      color: var(--amber);
+      border: 1px solid rgba(233,184,74,0.3);
+    }
+    .inv-track-body {
+      padding: 16px 20px;
+      display: grid;
+      gap: 12px;
+    }
+    .inv-track-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+    }
+    .inv-track-label {
+      color: var(--pale);
+      font-weight: 600;
+    }
+    .inv-track-value {
+      color: var(--cream);
+      font-weight: 700;
+    }
+    .inv-track-value.return-amount {
+      color: var(--bright);
+      font-size: 1.05rem;
+    }
+    .inv-track-countdown {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .countdown-unit {
+      text-align: center;
+      padding: 8px 4px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .countdown-number {
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: var(--amber);
+      line-height: 1;
+    }
+    .countdown-label {
+      font-size: 0.65rem;
+      color: var(--pale);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      margin-top: 4px;
+    }
+    .inv-track-progress {
+      margin-top: 4px;
+    }
+    .inv-track-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--pale);
+      margin-bottom: 6px;
+    }
+
+    /* Chart cards */
+    .chart-card {
+      min-height: 300px;
+    }
+    .chart-card canvas {
+      max-height: 240px;
+    }
+
+    /* Investment analytics grid */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .analytics-metric {
+      text-align: center;
+      padding: 18px 14px;
+    }
+    .analytics-metric-value {
+      font-family: var(--font-head);
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--cream);
+      line-height: 1.1;
+    }
+    .analytics-metric-value.green { color: var(--bright); }
+    .analytics-metric-value.gold { color: var(--amber); }
+    .analytics-metric-label {
+      color: var(--pale);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 6px;
+    }
+
+    /* Notification toast */
+    .maturity-toast {
+      position: fixed;
+      top: 90px;
+      right: 24px;
+      max-width: 380px;
+      padding: 16px 20px;
+      background: rgba(26,58,42,0.95);
+      border: 1px solid rgba(82,183,136,0.4);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+      backdrop-filter: blur(20px);
+      z-index: 9999;
+      transform: translateX(120%);
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .maturity-toast.show {
+      transform: translateX(0);
+    }
+    .maturity-toast-title {
+      font-weight: 900;
+      color: var(--bright);
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+    .maturity-toast-msg {
+      color: var(--cream);
+      font-size: 0.88rem;
+      line-height: 1.4;
+    }
+
+    .empty-investments {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--pale);
+    }
+    .empty-investments a {
+      color: var(--amber);
+      font-weight: 800;
+    }
+  </style>
 </head>
 <body>
   <nav>
@@ -55,7 +233,76 @@
       </article>
     </section>
 
+    <!-- Investment Analytics -->
+    <section class="analytics-grid" id="analyticsGrid">
+      <article class="glass analytics-metric anim">
+        <div class="analytics-metric-value green" id="totalReturns">GHS 0.00</div>
+        <div class="analytics-metric-label">Total Returns</div>
+      </article>
+      <article class="glass analytics-metric anim anim-delay-1">
+        <div class="analytics-metric-value gold" id="avgRoi">0%</div>
+        <div class="analytics-metric-label">Avg ROI</div>
+      </article>
+      <article class="glass analytics-metric anim anim-delay-2">
+        <div class="analytics-metric-value" id="completedCount">0</div>
+        <div class="analytics-metric-label">Completed</div>
+      </article>
+      <article class="glass analytics-metric anim anim-delay-3">
+        <div class="analytics-metric-value green" id="pendingReturns">GHS 0.00</div>
+        <div class="analytics-metric-label">Pending Returns</div>
+      </article>
+    </section>
+
+    <!-- Charts Section -->
     <section class="grid grid-2 dashboard-grid">
+      <article class="glass panel-card chart-card anim">
+        <div class="panel-head">
+          <div><span class="eyebrow">Growth</span><h3>Portfolio trajectory</h3></div>
+          <span class="status-pill">Live</span>
+        </div>
+        <canvas id="growthChart"></canvas>
+      </article>
+
+      <article class="glass panel-card chart-card anim anim-delay-1">
+        <div class="panel-head">
+          <div><span class="eyebrow">Returns</span><h3>Return breakdown</h3></div>
+          <span class="status-pill amber">Projected</span>
+        </div>
+        <canvas id="returnChart"></canvas>
+      </article>
+    </section>
+
+    <section class="grid grid-2 dashboard-grid" style="margin-top: 24px;">
+      <article class="glass panel-card chart-card anim">
+        <div class="panel-head">
+          <div><span class="eyebrow">History</span><h3>Investment history</h3></div>
+        </div>
+        <canvas id="historyChart"></canvas>
+      </article>
+
+      <article class="glass panel-card chart-card anim anim-delay-1">
+        <div class="panel-head">
+          <div><span class="eyebrow">Active</span><h3>Active investment chart</h3></div>
+        </div>
+        <canvas id="activeChart"></canvas>
+      </article>
+    </section>
+
+    <!-- Active Investments Tracking -->
+    <section style="margin-top: 24px;">
+      <div class="section-head compact-head">
+        <span class="eyebrow">Active Investments</span>
+        <h2 class="section-title">Track your investments.</h2>
+      </div>
+      <div id="investmentsContainer" class="grid grid-2">
+        <div class="empty-investments glass" style="grid-column: 1 / -1;">
+          Active investments will appear here. <a href="investment.html">Start investing</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Transactions -->
+    <section class="grid grid-2 dashboard-grid" style="margin-top: 24px;">
       <article class="glass panel-card anim">
         <div class="panel-head">
           <div><span class="eyebrow">Activity</span><h3>Recent transactions</h3></div>
@@ -68,20 +315,10 @@
 
       <article class="glass panel-card anim anim-delay-1">
         <div class="panel-head">
-          <div><span class="eyebrow">Growth</span><h3>Portfolio trajectory</h3></div>
-          <span class="status-pill">Projected</span>
+          <div><span class="eyebrow">Notifications</span><h3>Recent alerts</h3></div>
         </div>
-        <div class="chart-container premium-chart">
-          <svg class="chart-svg" viewBox="0 0 500 220" role="img" aria-label="Portfolio growth chart">
-            <defs>
-              <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#52b788" stop-opacity="0.7"/>
-                <stop offset="100%" stop-color="#52b788" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <polygon fill="url(#lg)" points="20,170 80,138 140,150 200,92 260,106 320,64 380,74 440,38 500,50 500,220 20,220"/>
-            <polyline fill="none" stroke="#e9b84a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" points="20,170 80,138 140,150 200,92 260,106 320,64 380,74 440,38 500,50"/>
-          </svg>
+        <div id="notifContainer" class="activity-list">
+          <div class="empty-state">Notifications will appear here.</div>
         </div>
       </article>
     </section>
@@ -102,16 +339,435 @@
     </section>
   </main>
 
+  <!-- Maturity notification toast -->
+  <div id="maturityToast" class="maturity-toast">
+    <div class="maturity-toast-title">Investment Matured!</div>
+    <div class="maturity-toast-msg" id="maturityToastMsg"></div>
+  </div>
+
   <script type="module">
     import { auth } from './js/firebase-config.js';
-    import { watchUser, watchTransactions, watchNotifications } from './js/firestore.js';
+    import { watchUser, watchTransactions, watchNotifications, watchInvestments, processMaturedInvestment } from './js/firestore.js';
     import { logoutUser } from './js/auth.js';
     import { initRouter } from './js/router.js';
+    import { showToast } from './js/utils.js';
     window.logout = logoutUser;
     initRouter();
     document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
+
+    // Chart instances
+    let growthChart = null;
+    let returnChart = null;
+    let historyChart = null;
+    let activeChart = null;
+    let countdownInterval = null;
+
+    // Chart default styling
+    const chartColors = {
+      green: '#52b788',
+      greenAlpha: 'rgba(82,183,136,0.2)',
+      gold: '#e9b84a',
+      goldAlpha: 'rgba(233,184,74,0.2)',
+      cream: '#faf6ee',
+      pale: 'rgba(183,228,199,0.6)',
+      grid: 'rgba(255,255,255,0.06)',
+      gridBorder: 'rgba(255,255,255,0.08)'
+    };
+
+    Chart.defaults.color = chartColors.pale;
+    Chart.defaults.borderColor = chartColors.gridBorder;
+    Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
+
+    function initCharts() {
+      const growthCtx = document.getElementById('growthChart');
+      if (!growthCtx) return;
+
+      growthChart = new Chart(growthCtx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Portfolio Value',
+            data: [],
+            borderColor: chartColors.gold,
+            backgroundColor: chartColors.goldAlpha,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: chartColors.gold,
+            pointBorderColor: chartColors.gold
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: chartColors.grid }, ticks: { maxTicksLimit: 6 } },
+            y: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } }
+          }
+        }
+      });
+
+      const returnCtx = document.getElementById('returnChart');
+      returnChart = new Chart(returnCtx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Invested',
+            data: [],
+            backgroundColor: chartColors.goldAlpha,
+            borderColor: chartColors.gold,
+            borderWidth: 1,
+            borderRadius: 6
+          }, {
+            label: 'Expected Return',
+            data: [],
+            backgroundColor: chartColors.greenAlpha,
+            borderColor: chartColors.green,
+            borderWidth: 1,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } }
+          }
+        }
+      });
+
+      const historyCtx = document.getElementById('historyChart');
+      historyChart = new Chart(historyCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Active', 'Completed'],
+          datasets: [{
+            data: [0, 0],
+            backgroundColor: [chartColors.goldAlpha, chartColors.greenAlpha],
+            borderColor: [chartColors.gold, chartColors.green],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { padding: 16, boxWidth: 12 } }
+          }
+        }
+      });
+
+      const activeCtx = document.getElementById('activeChart');
+      activeChart = new Chart(activeCtx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Investment',
+            data: [],
+            backgroundColor: chartColors.goldAlpha,
+            borderColor: chartColors.gold,
+            borderWidth: 1,
+            borderRadius: 6
+          }, {
+            label: 'Return',
+            data: [],
+            backgroundColor: chartColors.greenAlpha,
+            borderColor: chartColors.green,
+            borderWidth: 1,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
+          scales: {
+            x: { grid: { color: chartColors.grid }, ticks: { callback: v => `GHS ${v.toLocaleString()}` } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function updateCharts(investments) {
+      if (!investments || investments.length === 0) return;
+
+      const active = investments.filter(i => i.status === 'active');
+      const completed = investments.filter(i => i.status === 'completed');
+
+      // Growth chart - portfolio value over time
+      const sortedByDate = [...investments].sort((a, b) => {
+        const da = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.maturityDate).getTime() - (a.durationHours * 3600000);
+        const db = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.maturityDate).getTime() - (b.durationHours * 3600000);
+        return da - db;
+      });
+
+      let cumulativeValue = 0;
+      const growthLabels = [];
+      const growthData = [];
+      sortedByDate.forEach(inv => {
+        const date = inv.createdAt?.seconds ? new Date(inv.createdAt.seconds * 1000) : new Date();
+        growthLabels.push(date.toLocaleDateString('en', { month: 'short', day: 'numeric' }));
+        cumulativeValue += inv.amount;
+        if (inv.status === 'completed') cumulativeValue += (inv.expectedReturn - inv.amount);
+        growthData.push(cumulativeValue);
+      });
+
+      if (growthChart) {
+        growthChart.data.labels = growthLabels.length > 0 ? growthLabels : ['No data'];
+        growthChart.data.datasets[0].data = growthData.length > 0 ? growthData : [0];
+        growthChart.update('none');
+      }
+
+      // Return chart - invested vs expected return per plan
+      const planReturns = {};
+      investments.forEach(inv => {
+        const plan = inv.animalType || 'Unknown';
+        if (!planReturns[plan]) planReturns[plan] = { invested: 0, returns: 0 };
+        planReturns[plan].invested += inv.amount;
+        planReturns[plan].returns += inv.expectedReturn || inv.amount;
+      });
+      const planLabels = Object.keys(planReturns);
+      const planInvested = planLabels.map(p => planReturns[p].invested);
+      const planReturnsData = planLabels.map(p => planReturns[p].returns);
+
+      if (returnChart) {
+        returnChart.data.labels = planLabels.length > 0 ? planLabels : ['No data'];
+        returnChart.data.datasets[0].data = planInvested.length > 0 ? planInvested : [0];
+        returnChart.data.datasets[1].data = planReturnsData.length > 0 ? planReturnsData : [0];
+        returnChart.update('none');
+      }
+
+      // History chart - active vs completed count
+      if (historyChart) {
+        historyChart.data.datasets[0].data = [active.length, completed.length];
+        historyChart.update('none');
+      }
+
+      // Active investment chart - horizontal bars
+      if (activeChart && active.length > 0) {
+        activeChart.data.labels = active.map(i => i.animalType || 'Unknown');
+        activeChart.data.datasets[0].data = active.map(i => i.amount);
+        activeChart.data.datasets[1].data = active.map(i => i.expectedReturn || i.amount);
+        activeChart.update('none');
+      } else if (activeChart) {
+        activeChart.data.labels = ['No active investments'];
+        activeChart.data.datasets[0].data = [0];
+        activeChart.data.datasets[1].data = [0];
+        activeChart.update('none');
+      }
+    }
+
+    function updateAnalytics(investments) {
+      const active = investments.filter(i => i.status === 'active');
+      const completed = investments.filter(i => i.status === 'completed');
+      const totalReturns = completed.reduce((s, i) => s + (i.expectedReturn || i.amount), 0);
+      const pendingReturns = active.reduce((s, i) => s + (i.expectedReturn || i.amount), 0);
+      const allWithRoi = investments.filter(i => i.roiPercent > 0);
+      const avgRoi = allWithRoi.length > 0 ? allWithRoi.reduce((s, i) => s + i.roiPercent, 0) / allWithRoi.length : 0;
+
+      document.getElementById('totalReturns').textContent = `GHS ${totalReturns.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('avgRoi').textContent = `${avgRoi.toFixed(1)}%`;
+      document.getElementById('completedCount').textContent = completed.length;
+      document.getElementById('pendingReturns').textContent = `GHS ${pendingReturns.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
+    function getTimeRemaining(maturityDate) {
+      const maturityMs = maturityDate instanceof Date ? maturityDate.getTime() : new Date(maturityDate).getTime();
+      const now = Date.now();
+      const diff = maturityMs - now;
+
+      if (diff <= 0) {
+        return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0, progress: 100 };
+      }
+
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+
+      // Calculate progress based on duration
+      return { days, hours, minutes, seconds, total: diff, progress: null };
+    }
+
+    function calculateProgress(inv) {
+      const maturityMs = inv.maturityDate instanceof Date ? inv.maturityDate.getTime() : new Date(inv.maturityDate).getTime();
+      const startMs = inv.startDate?.seconds ? inv.startDate.seconds * 1000 : (maturityMs - (inv.durationHours * 3600000));
+      const now = Date.now();
+      const total = maturityMs - startMs;
+      const elapsed = now - startMs;
+      if (total <= 0) return 100;
+      return Math.min(100, Math.max(0, (elapsed / total) * 100));
+    }
+
+    function renderInvestments(investments) {
+      const container = document.getElementById('investmentsContainer');
+      if (!investments || investments.length === 0) {
+        container.innerHTML = `<div class="empty-investments glass" style="grid-column: 1 / -1;">
+          Active investments will appear here. <a href="investment.html">Start investing</a>
+        </div>`;
+        return;
+      }
+
+      // Show all investments (active first, then completed)
+      const sorted = [...investments].sort((a, b) => {
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        return 0;
+      });
+
+      container.innerHTML = sorted.map(inv => {
+        const isActive = inv.status === 'active';
+        const maturityDate = inv.maturityDate instanceof Date ? inv.maturityDate : new Date(inv.maturityDate);
+        const progress = calculateProgress(inv);
+        const time = getTimeRemaining(maturityDate);
+        const fmt = (n) => n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        return `<article class="glass inv-track-card" data-inv-id="${inv.id}" data-maturity="${maturityDate.toISOString()}" data-duration-hours="${inv.durationHours || 0}" data-start="${inv.startDate?.seconds || 0}">
+          <div class="inv-track-header">
+            <span class="inv-track-plan">${inv.animalType || 'Investment'}</span>
+            <span class="inv-track-status ${inv.status}">${inv.status}</span>
+          </div>
+          <div class="inv-track-body">
+            <div class="inv-track-row">
+              <span class="inv-track-label">Invested</span>
+              <span class="inv-track-value">GHS ${fmt(inv.amount)}</span>
+            </div>
+            <div class="inv-track-row">
+              <span class="inv-track-label">Expected Return</span>
+              <span class="inv-track-value return-amount">GHS ${fmt(inv.expectedReturn || inv.amount)}</span>
+            </div>
+            <div class="inv-track-row">
+              <span class="inv-track-label">ROI</span>
+              <span class="inv-track-value" style="color: var(--amber);">${inv.roiPercent ? inv.roiPercent.toFixed(1) + '%' : '—'}</span>
+            </div>
+            ${isActive ? `
+            <div class="inv-track-countdown" data-countdown="${inv.id}">
+              <div class="countdown-unit">
+                <div class="countdown-number" data-days>${time.days}</div>
+                <div class="countdown-label">Days</div>
+              </div>
+              <div class="countdown-unit">
+                <div class="countdown-number" data-hours>${time.hours}</div>
+                <div class="countdown-label">Hours</div>
+              </div>
+              <div class="countdown-unit">
+                <div class="countdown-number" data-mins>${time.minutes}</div>
+                <div class="countdown-label">Mins</div>
+              </div>
+              <div class="countdown-unit">
+                <div class="countdown-number" data-secs>${time.seconds}</div>
+                <div class="countdown-label">Secs</div>
+              </div>
+            </div>
+            <div class="inv-track-progress">
+              <div class="inv-track-progress-label">
+                <span>Progress</span>
+                <span>${progress.toFixed(1)}%</span>
+              </div>
+              <div class="progress">
+                <div class="progress-fill" style="width:${progress}%"></div>
+              </div>
+            </div>
+            <div class="inv-track-row">
+              <span class="inv-track-label">Matures</span>
+              <span class="inv-track-value" style="font-size:0.82rem;">${maturityDate.toLocaleString(undefined, {month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
+            </div>
+            ` : `
+            <div class="inv-track-row">
+              <span class="inv-track-label">Payout</span>
+              <span class="inv-track-value return-amount">GHS ${fmt(inv.payoutAmount || inv.expectedReturn || inv.amount)}</span>
+            </div>
+            `}
+          </div>
+        </article>`;
+      }).join('');
+    }
+
+    // ✅ Live countdown update every second
+    function startCountdowns() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        document.querySelectorAll('[data-countdown]').forEach(el => {
+          const invId = el.dataset.countdown;
+          const card = el.closest('.inv-track-card');
+          if (!card) return;
+
+          const maturityStr = card.dataset.maturity;
+          const maturityDate = new Date(maturityStr);
+          const time = getTimeRemaining(maturityDate);
+
+          const daysEl = el.querySelector('[data-days]');
+          const hoursEl = el.querySelector('[data-hours]');
+          const minsEl = el.querySelector('[data-mins]');
+          const secsEl = el.querySelector('[data-secs]');
+
+          if (daysEl) daysEl.textContent = time.days;
+          if (hoursEl) hoursEl.textContent = time.hours;
+          if (minsEl) minsEl.textContent = time.minutes;
+          if (secsEl) secsEl.textContent = time.seconds;
+
+          // Update progress bar
+          const durationHours = parseFloat(card.dataset.durationHours) || 0;
+          const startSeconds = parseFloat(card.dataset.start) || 0;
+          const startMs = startSeconds > 0 ? startSeconds * 1000 : (maturityDate.getTime() - durationHours * 3600000);
+          const now = Date.now();
+          const total = maturityDate.getTime() - startMs;
+          const elapsed = now - startMs;
+          const progress = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 100;
+
+          const progressFill = card.querySelector('.progress-fill');
+          const progressLabel = card.querySelector('.inv-track-progress-label span:last-child');
+          if (progressFill) progressFill.style.width = progress + '%';
+          if (progressLabel) progressLabel.textContent = progress.toFixed(1) + '%';
+        });
+      }, 1000);
+    }
+
+    // ✅ Maturity check - process completed investments
+    let processedIds = new Set();
+    async function checkMaturities(investments) {
+      const now = Date.now();
+      for (const inv of investments) {
+        if (inv.status !== 'active') continue;
+        if (processedIds.has(inv.id)) continue;
+
+        const maturityMs = inv.maturityDate instanceof Date ? inv.maturityDate.getTime() : new Date(inv.maturityDate).getTime();
+        if (now >= maturityMs) {
+          processedIds.add(inv.id);
+          try {
+            await processMaturedInvestment(inv.id, inv);
+            showMaturityToast(inv);
+          } catch (err) {
+            console.error('Failed to process matured investment:', err);
+            processedIds.delete(inv.id);
+          }
+        }
+      }
+    }
+
+    function showMaturityToast(inv) {
+      const toast = document.getElementById('maturityToast');
+      const msg = document.getElementById('maturityToastMsg');
+      const returnAmt = inv.expectedReturn || inv.amount;
+      msg.textContent = `Your ${inv.animalType} investment has matured successfully. GHS ${returnAmt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} has been credited.`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 6000);
+    }
+
+    // ✅ Initialize everything on auth
     auth.onAuthStateChanged(u => {
       if (!u) return;
+
+      initCharts();
+
       watchUser(u.uid, d => {
         if (d) {
           document.getElementById('walletBal').textContent = `GHS ${d.walletBalance.toFixed(2)}`;
@@ -119,8 +775,33 @@
           document.getElementById('activeCount').textContent = d.activeInvestmentCount || 0;
         }
       });
+
       watchTransactions(u.uid, txs => {
-        document.getElementById('txContainer').innerHTML = txs.slice(0,5).map(t => `<div class="activity-row"><div><strong>${t.type}</strong><br><small>${new Date(t.createdAt?.seconds*1000).toLocaleDateString()}</small></div><div class="${t.type === 'deposit' ? 'positive' : 'warning'}">${t.type === 'investment' ? '-' : '+'}GHS ${t.amount}</div></div>`).join('');
+        document.getElementById('txContainer').innerHTML = txs.slice(0, 8).map(t => {
+          const isReturn = t.type === 'return';
+          return `<div class="activity-row"><div><strong>${isReturn ? 'Return' : t.type}</strong>${t.animalType ? `<br><small style="color:var(--amber)">${t.animalType}</small>` : ''}<br><small>${new Date(t.createdAt?.seconds*1000 || Date.now()).toLocaleDateString()}</small></div><div class="${isReturn ? 'positive' : t.type === 'deposit' ? 'positive' : 'warning'}">${isReturn ? '+' : t.type === 'investment' ? '-' : '+'}GHS ${t.amount}</div></div>`;
+        }).join('');
+      });
+
+      watchNotifications(u.uid, notifs => {
+        const container = document.getElementById('notifContainer');
+        if (!notifs || notifs.length === 0) {
+          container.innerHTML = '<div class="empty-state">No new notifications.</div>';
+          return;
+        }
+        container.innerHTML = notifs.slice(0, 8).map(n => {
+          const isMatured = n.type === 'investment_matured';
+          return `<div class="activity-row"><div><strong style="color:${isMatured ? 'var(--bright)' : 'var(--cream)'}">${n.title}</strong><br><small>${n.message}</small></div></div>`;
+        }).join('');
+      });
+
+      // ✅ Watch investments for tracking, charts, and maturity
+      watchInvestments(u.uid, investments => {
+        renderInvestments(investments);
+        updateCharts(investments);
+        updateAnalytics(investments);
+        startCountdowns();
+        checkMaturities(investments);
       });
     });
   </script>

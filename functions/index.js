@@ -97,8 +97,13 @@ async function saveVerifiedPaystackPayment({
   method = "paystack",
   paymentType = "deposit",
   animalType = null,
-  duration = 6,
-  roi = 15,
+  durationHours = 0,
+  minimumInvestment = 0,
+  baseReturn = 0,
+  expectedReturn = 0,
+  profit = 0,
+  roiPercent = 0,
+  maturityDate = null,
   paystackData = null
 }) {
   const firestore = admin.firestore();
@@ -149,17 +154,29 @@ async function saveVerifiedPaystackPayment({
     });
 
     if (paymentType === "investment") {
+      const maturityMs = Number(durationHours) * 3600000;
+      const calculatedMaturity = maturityDate ? new Date(maturityDate) : new Date(Date.now() + maturityMs);
+      const calculatedExpectedReturn = expectedReturn || ((amount / (minimumInvestment || amount)) * (baseReturn || 0));
+      const calculatedProfit = profit || (calculatedExpectedReturn - amount);
+      const calculatedRoiPercent = roiPercent || ((calculatedProfit / amount) * 100);
+
       t.set(investmentRef, {
         userId: uid,
         animalType,
         amount,
-        duration,
-        roi,
+        minimumInvestment: minimumInvestment || amount,
+        baseReturn: baseReturn || 0,
+        expectedReturn: calculatedExpectedReturn,
+        profit: calculatedProfit,
+        roiPercent: calculatedRoiPercent,
+        durationHours: Number(durationHours) || 0,
         status: "active",
         paymentMethod: method,
         paymentReference: reference,
+        payoutProcessed: false,
+        startDate: admin.firestore.FieldValue.serverTimestamp(),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        maturityDate: new Date(Date.now() + Number(duration) * 30 * 86400000)
+        maturityDate: calculatedMaturity
       });
 
       t.update(userRef, {
@@ -203,8 +220,13 @@ exports.verifyPaystackDeposit = functions.https.onCall(async (data, context) => 
     method: data.method || tx.channel || "paystack",
     paymentType,
     animalType,
-    duration: Number(data.duration || 6),
-    roi: Number(data.roi || 15),
+    durationHours: Number(data.durationHours || data.duration || 0),
+    minimumInvestment: Number(data.minimumInvestment || 0),
+    baseReturn: Number(data.baseReturn || 0),
+    expectedReturn: Number(data.expectedReturn || 0),
+    profit: Number(data.profit || 0),
+    roiPercent: Number(data.roiPercent || 0),
+    maturityDate: data.maturityDate || null,
     paystackData: {
       transactionId: tx.id,
       channel: tx.channel,
@@ -269,8 +291,13 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     method: data.channel || "paystack",
     paymentType,
     animalType,
-    duration: Number(metadata.duration || 6),
-    roi: Number(metadata.roi || 15),
+    durationHours: Number(metadata.durationHours || metadata.duration || 0),
+    minimumInvestment: Number(metadata.minimumInvestment || 0),
+    baseReturn: Number(metadata.baseReturn || 0),
+    expectedReturn: Number(metadata.expectedReturn || 0),
+    profit: Number(metadata.profit || 0),
+    roiPercent: Number(metadata.roiPercent || 0),
+    maturityDate: metadata.maturityDate || null,
     paystackData: {
       transactionId: data.id,
       channel: data.channel,
