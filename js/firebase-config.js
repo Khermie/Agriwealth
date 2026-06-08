@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
@@ -13,9 +13,12 @@ const firebaseConfig = {
   measurementId: "G-B95515W9W6"
 };
 
-console.log("[Firebase] Initializing Firebase app...");
+console.log("[Firebase] Checking existing apps...");
 
-export const app = initializeApp(firebaseConfig);
+// PREVENT DUPLICATE INITIALIZATION - use getApps() guard
+export const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+console.log("[Firebase] App initialized:", app.name);
+
 export const auth = getAuth(app);
 
 export const db = initializeFirestore(app, {

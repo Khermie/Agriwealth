@@ -6,6 +6,8 @@ from "./firebase-config.js";
 
 let _redirecting = false;
 let _routerInitialized = false;
+let _authDebounce = null;
+let _pendingUser = null;
 
 export function initRouter(){
 
@@ -21,6 +23,13 @@ console.log("[Router] Initializing");
 
 onAuthStateChanged(auth,(user)=>{
 
+// DEBOUNCE: wait 300ms for auth state to settle (prevents mobile blinking)
+_pendingUser = user;
+clearTimeout(_authDebounce);
+
+_authDebounce = setTimeout(()=>{
+
+const u = _pendingUser;
 const path =
 window.location.pathname
 .split("/")
@@ -34,15 +43,22 @@ const publicPages = [
 ];
 
 // Store current user only
-window.CURRENT_USER = user || null;
+window.CURRENT_USER = u || null;
 
 // Stop if redirect already started
 if(_redirecting){
+    console.log("[Router] Already redirecting - skip");
     return;
 }
 
+console.log("[Router] Auth state settled:", u ? `signed in (${u.uid})` : "no user", "| page:", path);
+
+window.dispatchEvent(new CustomEvent('auth-resolved', {
+  detail: { user: u, path }
+}));
+
 // User not logged in on protected page
-if(!user && !publicPages.includes(path)){
+if(!u && !publicPages.includes(path)){
 
 console.log(
 "[Router] Redirect → login"
@@ -59,7 +75,7 @@ return;
 
 // User logged in on login/signup page
 if(
-user &&
+u &&
 publicPages.includes(path)
 ){
 
@@ -75,6 +91,13 @@ window.location.replace(
 
 return;
 }
+
+// User is logged in - expose to window
+if(u){
+  console.log("[Router] User available:", u.uid);
+}
+
+}, 300); // 300ms debounce delay
 
 });
 

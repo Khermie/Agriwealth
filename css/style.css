@@ -1127,6 +1127,8 @@ body::before {
   }
   /* Reduce shadow complexity */
   .glass { box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+  /* DISABLE ALL HOVER ANIMATIONS ON MOBILE - prevents layout shift */
+  .glass:hover { transform: none !important; }
   .invest-card:hover { transform: none; box-shadow: none; }
   .btn:hover { transform: none; filter: none; box-shadow: 0 10px 28px rgba(233,184,74,0.18); }
   /* Reduce nav blur */
