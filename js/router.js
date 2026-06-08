@@ -1,31 +1,28 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { auth, authReady } from "./firebase-config.js";
 
-let _redirecting = false;
-
 export async function initRouter() {
-  // 🔥 CRITICAL: Wait for Firebase to finish its initial check
-  await authReady; 
-  
-  onAuthStateChanged(auth, (user) => {
-    if (_redirecting) return;
+  console.log("[Router] Waiting for Firebase...");
+  await authReady; // Wait for initial auth check
+  console.log("[Router] Firebase ready. Listening for changes.");
 
-    const fullPath = window.location.pathname.split('/').pop() || 'index.html';
-    const currentPage = fullPath.replace('.html', ''); // Fixes Vercel cleanUrls
+  onAuthStateChanged(auth, (user) => {
+    // Get current page name without .html
+    const path = window.location.pathname.split('/').pop() || 'index.html';
+    const currentPage = path.replace('.html', '');
     const publicPages = ['index', 'login', 'signup'];
 
+    console.log("[Router] User:", user ? "Logged In" : "Logged Out", "| Page:", currentPage);
+
+    // If logged out and on a protected page -> go to login
     if (!user && !publicPages.includes(currentPage)) {
-      _redirecting = true;
+      console.log("[Router] -> Redirecting to login");
       window.location.href = 'login.html';
-    } else if (user && publicPages.includes(currentPage)) {
-      _redirecting = true;
+    } 
+    // If logged in and on a public page -> go to dashboard
+    else if (user && publicPages.includes(currentPage)) {
+      console.log("[Router] -> Redirecting to dashboard");
       window.location.href = 'dashboard.html';
-    } else if (user) {
-      window.CURRENT_USER = user;
     }
   });
-}
-
-export function markRedirecting() {
-  _redirecting = true;
 }

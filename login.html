@@ -36,25 +36,20 @@
     </section>
   </main>
    <script type="module">
-  import { loginUser, loginWithProvider, resetPassword } from './js/auth.js?v=6';
-  import { initRouter } from './js/router.js?v=6';
-  import { showToast } from './js/utils.js?v=6';
-
-  console.log("[Login] ✅ Modules loaded");
+  import { loginUser, loginWithProvider, resetPassword } from './js/auth.js?v=7';
+  import { initRouter } from './js/router.js?v=7';
+  import { showToast } from './js/utils.js?v=7';
 
   const loginBtn = document.getElementById('loginBtn');
-  const socialBtns = document.querySelectorAll('.social-btn');
   const passInput = document.getElementById('pass');
   const toggleBtn = document.getElementById('togglePassword');
 
-  // Password toggle
   toggleBtn.addEventListener('click', () => {
     const hidden = passInput.type === "password";
     passInput.type = hidden ? "text" : "password";
-    toggleBtn.textContent = hidden ? "🙈" : "👁";
+    toggleBtn.textContent = hidden ? "🙈" : "";
   });
 
-  // Forgot password
   document.getElementById('forgotLink').addEventListener('click', async (e) => {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
@@ -62,59 +57,37 @@
     await resetPassword(email);
   });
 
-  // ✅ FIXED LOGIN SUBMIT
+  // LOGIN SUBMIT
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    console.log("[Login] 🚀 Form submitted");
-
+    console.log("[Login] Submitting...");
+    
     loginBtn.disabled = true;
     loginBtn.textContent = "Signing in...";
 
-    try {
-      const email = document.getElementById('email').value.trim();
-      const password = passInput.value;
-      
-      console.log("[Login] Calling loginUser for:", email);
-      const success = await loginUser(email, password);
-      
-      console.log("[Login] loginUser returned:", success);
-      
-      if (success) {
-        console.log("[Login] ✅ Login successful! Waiting for auth.js redirect...");
-        // auth.js handles the redirect, but we add a fallback just in case
-        setTimeout(() => {
-          console.log("[Login] Fallback redirect to dashboard");
-          window.location.href = 'dashboard.html';
-        }, 2000);
-      } else {
-        console.log("[Login] ❌ Login failed");
-        loginBtn.disabled = false;
-        loginBtn.textContent = "Sign In";
-      }
-    } catch (error) {
-      console.error("[Login] 💥 Error:", error);
-      showToast("Login failed: " + error.message, "error");
+    // Call auth.js. If it returns true, the ROUTER will automatically redirect us!
+    const success = await loginUser(
+      document.getElementById('email').value.trim(), 
+      passInput.value
+    );
+
+    // If it failed, re-enable the button
+    if (!success) {
       loginBtn.disabled = false;
       loginBtn.textContent = "Sign In";
     }
   });
 
-  // Social login
-  socialBtns.forEach(btn => {
+  // SOCIAL LOGIN
+  document.querySelectorAll('.social-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      console.log("[Login] Social login:", btn.dataset.provider);
-      socialBtns.forEach(b => b.disabled = true);
-      try {
-        await loginWithProvider(btn.dataset.provider);
-      } catch (error) {
-        console.error(error);
-        socialBtns.forEach(b => b.disabled = false);
-      }
+      btn.disabled = true;
+      const success = await loginWithProvider(btn.dataset.provider);
+      if (!success) btn.disabled = false;
     });
   });
 
   initRouter();
-  console.log("[Login] 🚦 Router initialized");
 </script>
 </body>
 </html>

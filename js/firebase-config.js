@@ -19,10 +19,10 @@ export const storage = getStorage(app);
 
 setPersistence(auth, browserLocalPersistence);
 
-// 🔥 CRITICAL: Resolves ONLY after Firebase finishes checking local storage
+// This promise ensures we wait for Firebase to check local storage
 export const authReady = new Promise(resolve => {
   const unsubscribe = onAuthStateChanged(auth, (user) => {
-    unsubscribe(); 
+    unsubscribe();
     resolve(user);
   });
 });
