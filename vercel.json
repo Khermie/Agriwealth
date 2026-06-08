@@ -14,13 +14,13 @@
     {
       "source": "/css/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     },
     {
       "source": "/js/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     }
   ],
@@ -30,7 +30,6 @@
     { "source": "/signup", "destination": "/signup.html" },
     { "source": "/payment", "destination": "/payment.html" },
     { "source": "/investment", "destination": "/investment.html" },
-    { "source": "/profile", "destination": "/profile.html" },
-    { "source": "/(.*)", "destination": "/$1" }
+    { "source": "/profile", "destination": "/profile.html" }
   ]
 }
