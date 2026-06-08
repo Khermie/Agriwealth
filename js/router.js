@@ -1,82 +1,52 @@
-import {
-onAuthStateChanged
-}
-from
-"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { onAuthStateChanged }
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-import {
-auth
-}
-from
-"./firebase-config.js";
+import { auth }
+from "./firebase-config.js";
 
-let _redirecting=false;
-
-let _authDebounce=null;
-let _pendingUser=null;
+let _redirecting = false;
+let _routerInitialized = false;
 
 export function initRouter(){
 
-console.log(
-"[Router] Started"
-);
-
-onAuthStateChanged(
-auth,
-(user)=>{
-
-if(_redirecting){
-
-return;
-
+// Prevent router from registering twice
+if(_routerInitialized){
+    console.log("[Router] Already initialized");
+    return;
 }
 
-_pendingUser=user;
+_routerInitialized = true;
 
-clearTimeout(
-_authDebounce
-);
+console.log("[Router] Initializing");
 
-_authDebounce=
-setTimeout(()=>{
+onAuthStateChanged(auth,(user)=>{
 
-const u=_pendingUser;
-
-const path=
+const path =
 window.location.pathname
 .split("/")
-.pop()
-||
+.pop() ||
 "index.html";
 
-const publicPages=[
-
+const publicPages = [
 "index.html",
 "login.html",
 "signup.html"
-
 ];
 
-window.dispatchEvent(
+// Store current user only
+window.CURRENT_USER = user || null;
 
-new CustomEvent(
-"auth-resolved",
-{
-detail:{
-user:u,
-path
+// Stop if redirect already started
+if(_redirecting){
+    return;
 }
-}
-)
 
+// User not logged in on protected page
+if(!user && !publicPages.includes(path)){
+
+console.log(
+"[Router] Redirect → login"
 );
-
-if(
-!u &&
-!publicPages.includes(
-path
-)
-){
 
 _redirecting=true;
 
@@ -84,17 +54,18 @@ window.location.replace(
 "login.html"
 );
 
+return;
 }
 
-else if(
-
-u &&
-publicPages.includes(
-path
-) &&
-!_redirecting
-
+// User logged in on login/signup page
+if(
+user &&
+publicPages.includes(path)
 ){
+
+console.log(
+"[Router] Redirect → dashboard"
+);
 
 _redirecting=true;
 
@@ -102,19 +73,10 @@ window.location.replace(
 "dashboard.html"
 );
 
+return;
 }
 
-else if(u){
-
-window.CURRENT_USER=u;
-
-}
-
-},300);
-
-}
-
-);
+});
 
 }
 
