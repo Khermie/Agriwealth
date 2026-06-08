@@ -1,5 +1,5 @@
-import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -9,32 +9,20 @@ const firebaseConfig = {
   projectId: "agriwealth-dev",
   storageBucket: "agriwealth-dev.firebasestorage.app",
   messagingSenderId: "795909844984",
-  appId: "1:795909844984:web:1f2167f8687739313df00d",
-  measurementId: "G-B95515W9W6"
+  appId: "1:795909844984:web:1f2167f8687739313df00d"
 };
 
-console.log("[Firebase] Checking existing apps...");
-
-// PREVENT DUPLICATE INITIALIZATION - use getApps() guard
-export const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-console.log("[Firebase] App initialized:", app.name);
-
+export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache()
-});
-
+export const db = initializeFirestore(app, { localCache: persistentLocalCache() });
 export const storage = getStorage(app);
 
-// Set persistence. We also export a promise so login can await deterministically.
-export const authReady = setPersistence(auth, browserLocalPersistence)
-  .then(() => {
-    console.log("[Firebase] Persistence set to browserLocalPersistence");
-    return true;
-  })
-  .catch(err => {
-    console.warn("[Firebase] Persistence failed, using default:", err);
-    return false;
-  });
+setPersistence(auth, browserLocalPersistence);
 
+// 🔥 CRITICAL: Resolves ONLY after Firebase finishes checking local storage
+export const authReady = new Promise(resolve => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    unsubscribe(); 
+    resolve(user);
+  });
+});

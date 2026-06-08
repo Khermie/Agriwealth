@@ -40,169 +40,71 @@
     </section>
   </main>
 <script type="module">
+  // ✅ ADDED ?v=3 TO FORCE BROWSER TO DOWNLOAD FRESH FILES
+  import { signupUser } from './js/auth.js?v=3';
+  import { initRouter } from './js/router.js?v=3';
+  import { showToast } from './js/utils.js?v=3';
 
-import { signupUser } from './js/auth.js';
-import { initRouter } from './js/router.js';
+  console.log("[Signup] ✅ All modules loaded successfully!");
 
-console.log("[Signup] Loaded");
+  const signupBtn = document.getElementById('signupBtn');
+  const passInput = document.getElementById('pass');
+  const toggleBtn = document.getElementById('togglePassword');
+  const bar = document.querySelector('.strength-bar');
 
-const signupBtn =
-document.getElementById('signupBtn');
+  // Password show/hide
+  toggleBtn.addEventListener('click', () => {
+    const hidden = passInput.type === "password";
+    passInput.type = hidden ? 'text' : 'password';
+    toggleBtn.textContent = hidden ? '🙈' : '👁';
+  });
 
-const passInput =
-document.getElementById('pass');
+  // Password strength
+  passInput.addEventListener('input', () => {
+    let s = (passInput.value.length > 5) + (/[A-Z]/.test(passInput.value)) + (/[0-9]/.test(passInput.value));
+    bar.style.width = `${s * 33}%`;
+    bar.style.background = ['#e74c3c', '#f39c12', '#52b788'][s];
+  });
 
-const toggleBtn =
-document.getElementById('togglePassword');
+  // ✅ FIXED SIGNUP SUBMIT (Added debug logs and smooth redirect)
+  document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    console.log("[Signup] 🚀 Form submitted, preventing default reload.");
 
-const bar =
-document.querySelector('.strength-bar');
+    signupBtn.disabled = true;
+    signupBtn.textContent = "Creating...";
 
+    try {
+      const ok = await signupUser(
+        document.getElementById('first').value.trim(),
+        document.getElementById('last').value.trim(),
+        document.getElementById('email').value.trim(),
+        passInput.value,
+        document.getElementById('phone').value.trim(),
+        document.getElementById('country').value
+      );
 
-// Password show/hide
+      if (ok) {
+        console.log("[Signup] ✅ Success! Redirecting to login...");
+        // ✅ CRITICAL FIX: Redirect directly here
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 500);
+      } else {
+        console.log("[Signup] ❌ Signup failed (check console).");
+        signupBtn.disabled = false;
+        signupBtn.textContent = "Sign Up";
+      }
+    } catch (error) {
+      console.error("[Signup] 💥 Unexpected error:", error);
+      signupBtn.disabled = false;
+      signupBtn.textContent = "Sign Up";
+    }
+  });
 
-toggleBtn.addEventListener(
-'click',
-()=>{
-
-const hidden=
-passInput.type==="password";
-
-passInput.type=
-hidden
-?
-'text'
-:
-'password';
-
-toggleBtn.textContent=
-hidden
-?
-'🙈'
-:
-'👁';
-
-}
-);
-
-
-// Password strength
-
-passInput.addEventListener(
-'input',
-()=>{
-
-let s=
-(passInput.value.length>5)
-+
-(/[A-Z]/.test(passInput.value))
-+
-(/[0-9]/.test(passInput.value));
-
-bar.style.width=
-`${s*33}%`;
-
-bar.style.background=
-[
-'#e74c3c',
-'#f39c12',
-'#52b788'
-][s];
-
-}
-);
-
-
-// Signup submit
-
-document
-.getElementById(
-'signupForm'
-)
-.addEventListener(
-'submit',
-async(e)=>{
-
-e.preventDefault();
-
-signupBtn.disabled=true;
-
-signupBtn.textContent=
-"Creating...";
-
-try{
-
-const ok=
-await signupUser(
-
-document.getElementById(
-'first'
-).value,
-
-document.getElementById(
-'last'
-).value,
-
-document.getElementById(
-'email'
-).value,
-
-passInput.value,
-
-document.getElementById(
-'phone'
-).value,
-
-document.getElementById(
-'country'
-).value
-
-);
-
-if(ok){
-
-console.log(
-"[Signup] Success"
-);
-
-// Don't use markRedirecting here
-// Signup isn't logging in
-
-setTimeout(()=>{
-
-window.location.replace(
-'login.html'
-);
-
-},500);
-
-}
-
-}catch(error){
-
-console.error(
-error
-);
-
-}
-
-finally{
-
-signupBtn.disabled=false;
-
-signupBtn.textContent=
-"Sign Up";
-
-}
-
-}
-);
-
-
-// Router listener
-
-initRouter();
-
+  // Router listener
+  initRouter();
+  console.log("[Signup] 🚦 Router initialized.");
 </script>
 </body>
 </html>
