@@ -8,11 +8,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
-  <!-- ✅ Auth gate: hide form until auth state resolves to prevent blink/flash -->
-  <style>
-    .auth-shell { opacity: 0; transition: opacity 0.25s ease; }
-    .auth-shell.auth-ready { opacity: 1; }
-  </style>
 </head>
 <body class="auth-body">
   <main class="auth-shell signup-shell">
@@ -53,6 +48,7 @@
     const signupBtn = document.getElementById('signupBtn');
     const p = document.getElementById('pass');
     const bar = document.querySelector('.strength-bar');
+    console.log("[Signup] Signup page loaded — form is visible");
 
     document.querySelector('.toggle-eye').onclick = e => {
       p.type = p.type === 'password' ? 'text' : 'password';
@@ -65,11 +61,11 @@
       bar.style.background = ['#e74c3c', '#f39c12', '#52b788'][s];
     });
 
-    // ✅ FIX: Form submit - disable button, no setLoading (overlay was stealing focus)
+    // Form submit — prevent page refresh, disable button during signup
     document.getElementById('signupForm').onsubmit = async e => {
       e.preventDefault();
       e.stopPropagation();
-      console.log("[Signup] Form submitted, disabling button");
+      console.log("[Signup] Signup clicked");
 
       signupBtn.disabled = true;
       signupBtn.textContent = 'Creating account...';
@@ -88,41 +84,17 @@
           console.log("[Signup] Account created, redirecting to login");
           window.location.href = 'login.html';
         }
+      } catch (error) {
+        console.error("[Signup] Unexpected error:", error);
       } finally {
+        // Loader must always stop — re-enable button
         signupBtn.disabled = false;
         signupBtn.textContent = 'Sign Up';
         console.log("[Signup] Button re-enabled");
       }
     };
 
-    // ✅ AUTH GATE: Wait for auth state to resolve before showing the form
-    function showAuthForm() {
-      const shell = document.querySelector('.auth-shell');
-      if (shell && !shell.classList.contains('auth-ready')) {
-        shell.classList.add('auth-ready');
-        console.log("[Signup] Auth form is now visible");
-      }
-    }
-
-    // Listen for auth resolution from the router
-    window.addEventListener('auth-resolved', (e) => {
-      console.log("[Signup] Auth resolved, user:", e.detail.user ? e.detail.user.uid : "null");
-      if (!e.detail.user) {
-        showAuthForm();
-      }
-      // If user exists, router redirects to dashboard — form stays hidden
-    });
-
-    // Fallback: show form after 2 seconds even if auth event never fires
-    setTimeout(() => {
-      if (!document.querySelector('.auth-shell.auth-ready')) {
-        console.log("[Signup] Fallback: showing auth form after timeout");
-        showAuthForm();
-      }
-    }, 2000);
-
-    // Register auth listener
-    console.log("[Signup] Initializing router");
+    // Register auth listener ONCE (handles redirect for already-logged-in users)
     initRouter();
   </script>
 </body>

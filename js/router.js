@@ -4,26 +4,26 @@ import { auth } from "./firebase-config.js";
 let _redirecting = false;
 
 export function initRouter() {
-  console.log("[Router] Registering onAuthStateChanged listener");
+  console.log("[Router] Registering onAuthStateChanged listener (once)");
 
   onAuthStateChanged(auth, (user) => {
-    // Prevent acting on auth state if already redirecting
+    // If a redirect is already in progress, skip all further auth events
     if (_redirecting) {
-      console.log("[Router] Already redirecting, skipping auth event");
+      console.log("[Router] Already redirecting — skipping auth event");
       return;
     }
 
     const path = window.location.pathname.split('/').pop() || 'index.html';
     const publicPages = ['index.html', 'login.html', 'signup.html'];
 
-    console.log("[Router] Auth state resolved:", user ? `user ${user.uid}` : "no user", "| page:", path);
+    console.log("[Router] Auth state:", user ? `signed in (${user.uid})` : "no user", "| page:", path);
 
-    // ✅ Dispatch custom event so auth pages know when to show their forms
-    // This prevents the "blink" where the form appears briefly before redirect
+    // Notify auth pages that auth state has been checked
     window.dispatchEvent(new CustomEvent('auth-resolved', {
       detail: { user, path }
     }));
 
+    // Redirect rules — only ONE redirect ever happens because _redirecting guards
     if (!user && !publicPages.includes(path)) {
       console.log("[Router] No user on protected page → redirecting to login");
       _redirecting = true;
@@ -38,9 +38,9 @@ export function initRouter() {
   });
 }
 
-// Allow external code to mark that a redirect is in progress
-// (prevents the auth listener from double-redirecting after login/signup)
+// Called by login/signup pages BEFORE they redirect after a successful sign-in.
+// This prevents the onAuthStateChanged listener from also trying to redirect.
 export function markRedirecting() {
-  console.log("[Router] Redirect marked, auth listener will skip future events");
+  console.log("[Router] Redirect marked by caller — auth listener will skip");
   _redirecting = true;
 }
