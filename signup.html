@@ -40,19 +40,18 @@
     </section>
   </main>
 <script type="module">
-  // ✅ ADDED ?v=3 TO FORCE BROWSER TO DOWNLOAD FRESH FILES
-  import { signupUser } from './js/auth.js?v=3';
-  import { initRouter } from './js/router.js?v=3';
-  import { showToast } from './js/utils.js?v=3';
+  import { signupUser } from './js/auth.js?v=6';
+  import { initRouter } from './js/router.js?v=6';
+  import { showToast } from './js/utils.js?v=6';
 
-  console.log("[Signup] ✅ All modules loaded successfully!");
+  console.log("[Signup] ✅ Modules loaded");
 
   const signupBtn = document.getElementById('signupBtn');
   const passInput = document.getElementById('pass');
   const toggleBtn = document.getElementById('togglePassword');
   const bar = document.querySelector('.strength-bar');
 
-  // Password show/hide
+  // Password toggle
   toggleBtn.addEventListener('click', () => {
     const hidden = passInput.type === "password";
     passInput.type = hidden ? 'text' : 'password';
@@ -66,10 +65,10 @@
     bar.style.background = ['#e74c3c', '#f39c12', '#52b788'][s];
   });
 
-  // ✅ FIXED SIGNUP SUBMIT (Added debug logs and smooth redirect)
+  // ✅ FIXED SIGNUP SUBMIT
   document.getElementById('signupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    console.log("[Signup] 🚀 Form submitted, preventing default reload.");
+    console.log("[Signup] 🚀 Form submitted");
 
     signupBtn.disabled = true;
     signupBtn.textContent = "Creating...";
@@ -84,27 +83,28 @@
         document.getElementById('country').value
       );
 
+      console.log("[Signup] signupUser returned:", ok);
+
       if (ok) {
         console.log("[Signup] ✅ Success! Redirecting to login...");
-        // ✅ CRITICAL FIX: Redirect directly here
         setTimeout(() => {
           window.location.href = 'login.html';
-        }, 500);
+        }, 1000);
       } else {
-        console.log("[Signup] ❌ Signup failed (check console).");
+        console.log("[Signup] ❌ Signup failed");
         signupBtn.disabled = false;
         signupBtn.textContent = "Sign Up";
       }
     } catch (error) {
-      console.error("[Signup] 💥 Unexpected error:", error);
+      console.error("[Signup] 💥 Error:", error);
+      showToast("Signup failed: " + error.message, "error");
       signupBtn.disabled = false;
       signupBtn.textContent = "Sign Up";
     }
   });
 
-  // Router listener
   initRouter();
-  console.log("[Signup] 🚦 Router initialized.");
+  console.log("[Signup] 🚦 Router initialized");
 </script>
 </body>
 </html>

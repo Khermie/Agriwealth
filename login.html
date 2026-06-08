@@ -35,85 +35,86 @@
       <p class="auth-link">No account? <a href="signup.html">Sign Up</a></p>
     </section>
   </main>
-    <script type="module">
-    // ✅ ADDED ?v=3 TO FORCE BROWSER TO DOWNLOAD FRESH FILES
-    import { loginUser, loginWithProvider, resetPassword } from './js/auth.js?v=3';
-    import { initRouter } from './js/router.js?v=3';
-    import { showToast } from './js/utils.js?v=3';
+   <script type="module">
+  import { loginUser, loginWithProvider, resetPassword } from './js/auth.js?v=6';
+  import { initRouter } from './js/router.js?v=6';
+  import { showToast } from './js/utils.js?v=6';
 
-    console.log("[Login] ✅ All modules loaded successfully!");
+  console.log("[Login] ✅ Modules loaded");
 
-    const loginBtn = document.getElementById('loginBtn');
-    const socialBtns = document.querySelectorAll('.social-btn');
-    const passInput = document.getElementById('pass');
-    const toggleBtn = document.getElementById('togglePassword');
+  const loginBtn = document.getElementById('loginBtn');
+  const socialBtns = document.querySelectorAll('.social-btn');
+  const passInput = document.getElementById('pass');
+  const toggleBtn = document.getElementById('togglePassword');
 
-    // Password toggle
-    toggleBtn.addEventListener('click', () => {
-      const hidden = passInput.type === "password";
-      passInput.type = hidden ? "text" : "password";
-      toggleBtn.textContent = hidden ? "🙈" : "👁";
-    });
+  // Password toggle
+  toggleBtn.addEventListener('click', () => {
+    const hidden = passInput.type === "password";
+    passInput.type = hidden ? "text" : "password";
+    toggleBtn.textContent = hidden ? "🙈" : "👁";
+  });
 
-    // Forgot password
-    document.getElementById('forgotLink').addEventListener('click', async (e) => {
-      e.preventDefault();
+  // Forgot password
+  document.getElementById('forgotLink').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    if (!email) return showToast("Enter email first", "warning");
+    await resetPassword(email);
+  });
+
+  // ✅ FIXED LOGIN SUBMIT
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    console.log("[Login] 🚀 Form submitted");
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Signing in...";
+
+    try {
       const email = document.getElementById('email').value.trim();
-      if (!email) {
-        showToast("Enter email first", "warning");
-        return;
-      }
-      await resetPassword(email);
-    });
-
-    // ✅ FIXED LOGIN SUBMIT (Added direct redirect and debug logs)
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      console.log("[Login] 🚀 Form submitted, preventing default reload.");
-
-      loginBtn.disabled = true;
-      loginBtn.textContent = "Signing in...";
-
-      try {
-        const email = document.getElementById('email').value.trim();
-        const password = passInput.value;
-        console.log("[Login] Attempting login for:", email);
-
-        const success = await loginUser(email, password);
-        
-        if (success) {
-          console.log("[Login] ✅ Login successful! Redirecting to dashboard...");
-          // ✅ CRITICAL FIX: Redirect directly here since auth.js doesn't do it
+      const password = passInput.value;
+      
+      console.log("[Login] Calling loginUser for:", email);
+      const success = await loginUser(email, password);
+      
+      console.log("[Login] loginUser returned:", success);
+      
+      if (success) {
+        console.log("[Login] ✅ Login successful! Waiting for auth.js redirect...");
+        // auth.js handles the redirect, but we add a fallback just in case
+        setTimeout(() => {
+          console.log("[Login] Fallback redirect to dashboard");
           window.location.href = 'dashboard.html';
-        } else {
-          console.log("[Login] ❌ Login failed (check Firebase credentials).");
-          loginBtn.disabled = false;
-          loginBtn.textContent = "Sign In";
-        }
-      } catch (error) {
-        console.error("[Login] 💥 Unexpected error:", error);
+        }, 2000);
+      } else {
+        console.log("[Login] ❌ Login failed");
         loginBtn.disabled = false;
         loginBtn.textContent = "Sign In";
       }
-    });
+    } catch (error) {
+      console.error("[Login] 💥 Error:", error);
+      showToast("Login failed: " + error.message, "error");
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Sign In";
+    }
+  });
 
-    // Social login
-    socialBtns.forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const provider = btn.dataset.provider;
-        console.log("[Login] Social login clicked:", provider);
-        socialBtns.forEach(b => b.disabled = true);
-        try {
-          await loginWithProvider(provider);
-        } finally {
-          socialBtns.forEach(b => b.disabled = false);
-        }
-      });
+  // Social login
+  socialBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      console.log("[Login] Social login:", btn.dataset.provider);
+      socialBtns.forEach(b => b.disabled = true);
+      try {
+        await loginWithProvider(btn.dataset.provider);
+      } catch (error) {
+        console.error(error);
+        socialBtns.forEach(b => b.disabled = false);
+      }
     });
+  });
 
-    // Start router ONCE
-    initRouter();
-    console.log("[Login] 🚦 Router initialized.");
-  </script>
+  initRouter();
+  console.log("[Login] 🚦 Router initialized");
+</script>
 </body>
 </html>
