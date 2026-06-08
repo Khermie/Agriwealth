@@ -8,6 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
+  <!-- ✅ Auth gate: hide form until auth state resolves to prevent blink/flash -->
+  <style>
+    .auth-shell { opacity: 0; transition: opacity 0.25s ease; }
+    .auth-shell.auth-ready { opacity: 1; }
+  </style>
 </head>
 <body class="auth-body">
   <main class="auth-shell">
@@ -35,9 +40,10 @@
     </section>
   </main>
   <script type="module">
+    console.log("[Login] Page script loading");
+
     import { loginUser, loginWithProvider } from './js/auth.js';
-    import { markRedirecting } from './js/router.js';
-    import { initRouter } from './js/router.js';
+    import { markRedirecting, initRouter } from './js/router.js';
 
     const loginBtn = document.getElementById('loginBtn');
     const socialBtns = document.querySelectorAll('.social-btn');
@@ -49,9 +55,12 @@
       e.target.textContent = i.type === 'password' ? 'Show' : 'Hide';
     };
 
-    // ✅ FIX: Disable button during login, prevent race condition with router
+    // ✅ FIX: Form submit - disable button, no setLoading (overlay was stealing focus)
     document.getElementById('loginForm').onsubmit = async e => {
       e.preventDefault();
+      e.stopPropagation();
+      console.log("[Login] Form submitted, disabling button");
+
       loginBtn.disabled = true;
       loginBtn.textContent = 'Signing in...';
 
@@ -61,7 +70,7 @@
           document.getElementById('pass').value
         );
         if (success) {
-          // Mark redirecting so router doesn't double-redirect
+          // ✅ Mark redirecting so router doesn't double-redirect after auth state change
           markRedirecting();
           console.log("[Login] Login successful, redirecting to dashboard");
           window.location.href = 'dashboard.html';
@@ -70,13 +79,15 @@
         // Re-enable only if we're still on the page (redirect didn't happen)
         loginBtn.disabled = false;
         loginBtn.textContent = 'Sign In';
+        console.log("[Login] Button re-enabled");
       }
     };
 
-    // ✅ FIX: Disable social buttons during login
+    // ✅ FIX: Social login - disable all buttons during popup
     socialBtns.forEach(btn => {
       btn.addEventListener('click', async () => {
         const provider = btn.dataset.provider;
+        console.log("[Login] Social login clicked:", provider);
         socialBtns.forEach(b => b.disabled = true);
         loginBtn.disabled = true;
         try {
@@ -88,7 +99,38 @@
       });
     });
 
-    // Router handles auth-state redirect (already logged in → dashboard)
+    // ✅ AUTH GATE: Wait for auth state to resolve before showing the form.
+    // This prevents the blink where the login form flashes briefly before
+    // the router redirects an already-logged-in user to the dashboard.
+    function showAuthForm() {
+      const shell = document.querySelector('.auth-shell');
+      if (shell && !shell.classList.contains('auth-ready')) {
+        shell.classList.add('auth-ready');
+        console.log("[Login] Auth form is now visible");
+      }
+    }
+
+    // Listen for auth resolution from the router
+    window.addEventListener('auth-resolved', (e) => {
+      console.log("[Login] Auth resolved, user:", e.detail.user ? e.detail.user.uid : "null");
+      if (!e.detail.user) {
+        // No user → show the login form
+        showAuthForm();
+      }
+      // If user exists, router will redirect to dashboard — form stays hidden, no blink!
+    });
+
+    // Fallback: show form after 2 seconds even if auth event never fires
+    // (handles edge cases like network issues or blocked Firebase)
+    setTimeout(() => {
+      if (!document.querySelector('.auth-shell.auth-ready')) {
+        console.log("[Login] Fallback: showing auth form after timeout");
+        showAuthForm();
+      }
+    }, 2000);
+
+    // Register auth listener (triggers auth-resolved event)
+    console.log("[Login] Initializing router");
     initRouter();
   </script>
 </body>

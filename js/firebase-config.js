@@ -13,6 +13,8 @@ const firebaseConfig = {
   measurementId: "G-B95515W9W6"
 };
 
+console.log("[Firebase] Initializing Firebase app...");
+
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
@@ -23,5 +25,16 @@ export const db = initializeFirestore(app, {
 
 export const storage = getStorage(app);
 
-// Keep user logged in across refreshes
-setPersistence(auth, browserLocalPersistence);
+// ✅ CRITICAL FIX: Await setPersistence before any onAuthStateChanged listener registers.
+// Without await, Firebase fires onAuthStateChanged TWICE:
+//   1st: null (before persistence reads localStorage)
+//   2nd: user (after persistence resolves and reads stored session)
+// This double-firing was the root cause of login page blinking/redirect loops.
+try {
+  await setPersistence(auth, browserLocalPersistence);
+  console.log("[Firebase] Persistence set to browserLocalPersistence - auth state is now reliable");
+} catch (err) {
+  // If persistence fails (e.g. localStorage disabled), fall back to default session persistence
+  // The app still works - user just won't stay logged in across browser sessions
+  console.warn("[Firebase] Failed to set persistence, using default:", err);
+}
