@@ -1,110 +1,45 @@
-import { onAuthStateChanged }
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-import { auth }
-from "./firebase-config.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { auth } from "./firebase-config.js";
 
 let _redirecting = false;
-let _routerInitialized = false;
-let _authDebounce = null;
-let _pendingUser = null;
 
-export function initRouter(){
+export function initRouter() {
+  console.log("[Router] Initializing");
 
-// Prevent router from registering twice
-if(_routerInitialized){
-    console.log("[Router] Already initialized");
-    return;
+  onAuthStateChanged(auth, (user) => {
+    if (_redirecting) {
+      console.log("[Router] Already redirecting — skipping auth event");
+      return;
+    }
+
+    // Get the current page name from the URL
+    const fullPath = window.location.pathname.split('/').pop() || 'index.html';
+    
+    // ✅ CRITICAL FIX: Remove '.html' so it matches Vercel's cleanUrls
+    const currentPage = fullPath.replace('.html', '');
+    
+    // ✅ CRITICAL FIX: List public pages WITHOUT '.html'
+    const publicPages = ['index', 'login', 'signup'];
+
+    console.log("[Router] Auth state settled:", user ? `signed in (${user.uid})` : "no user", "| page:", currentPage);
+
+    // Redirect rules
+    if (!user && !publicPages.includes(currentPage)) {
+      console.log("[Router] No user on protected page → redirecting to login");
+      _redirecting = true;
+      window.location.href = 'login.html';
+    } else if (user && publicPages.includes(currentPage)) {
+      console.log("[Router] User on public page → redirecting to dashboard");
+      _redirecting = true;
+      window.location.href = 'dashboard.html';
+    } else if (user) {
+      window.CURRENT_USER = user;
+    }
+  });
 }
 
-_routerInitialized = true;
-
-console.log("[Router] Initializing");
-
-onAuthStateChanged(auth,(user)=>{
-
-// DEBOUNCE: wait 300ms for auth state to settle (prevents mobile blinking)
-_pendingUser = user;
-clearTimeout(_authDebounce);
-
-_authDebounce = setTimeout(()=>{
-
-const u = _pendingUser;
-const path =
-window.location.pathname
-.split("/")
-.pop() ||
-"index.html";
-
-const publicPages = [
-"index.html",
-"login.html",
-"signup.html"
-];
-
-// Store current user only
-window.CURRENT_USER = u || null;
-
-// Stop if redirect already started
-if(_redirecting){
-    console.log("[Router] Already redirecting - skip");
-    return;
-}
-
-console.log("[Router] Auth state settled:", u ? `signed in (${u.uid})` : "no user", "| page:", path);
-
-window.dispatchEvent(new CustomEvent('auth-resolved', {
-  detail: { user: u, path }
-}));
-
-// User not logged in on protected page
-if(!u && !publicPages.includes(path)){
-
-console.log(
-"[Router] Redirect → login"
-);
-
-_redirecting=true;
-
-window.location.replace(
-"login.html"
-);
-
-return;
-}
-
-// User logged in on login/signup page
-if(
-u &&
-publicPages.includes(path)
-){
-
-console.log(
-"[Router] Redirect → dashboard"
-);
-
-_redirecting=true;
-
-window.location.replace(
-"dashboard.html"
-);
-
-return;
-}
-
-// User is logged in - expose to window
-if(u){
-  console.log("[Router] User available:", u.uid);
-}
-
-}, 300); // 300ms debounce delay
-
-});
-
-}
-
-export function markRedirecting(){
-
-_redirecting=true;
-
+// Called by login/signup pages BEFORE they redirect
+export function markRedirecting() {
+  console.log("[Router] Redirect marked by caller");
+  _redirecting = true;
 }
