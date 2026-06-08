@@ -4,7 +4,7 @@ import {
   sendEmailVerification, sendPasswordResetEmail, signOut, updateProfile
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { auth, db } from "./firebase-config.js";
+import { auth, db, authReady } from "./firebase-config.js";
 import { showToast } from "./utils.js";
 import { markRedirecting } from "./router.js";
 
@@ -37,20 +37,32 @@ export async function signupUser(firstName, lastName, email, password, phone, co
 }
 
 export async function loginUser(email, password) {
-  // ✅ No setLoading - login page handles button disabling instead of full-screen overlay
-  // The full-screen overlay was covering inputs, stealing focus, and causing the "cannot type" issue
   console.log("[Auth] Login started for:", email);
   try {
-    await signInWithEmailAndPassword(auth, email, password);
+    console.log("[Auth] Waiting for auth persistence...");
+    await authReady;
+
+    console.log("[Auth] Attempting sign in");
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    console.log("[Auth] User authenticated");
+
+    const user = userCredential?.user;
+    // If email verification exists, do not silently block login.
+    if (user && user.emailVerified === false) {
+      showToast("Please verify your email", "warning");
+    }
+
     console.log("[Auth] Login completed, auth state will handle redirect");
     showToast('Welcome back!', 'success');
     return true;
   } catch (err) {
-    console.error("[Auth] Login failed:", err.message);
-    showToast('Invalid email or password', 'error');
-    return false;
+    console.error("[Auth] Login failed:", err.code, err.message);
+    showToast(err?.message || 'Invalid email or password', 'error');
+    // Ensure login.html can surface debug info if it logs/handles the throw.
+    throw err;
   }
 }
+
 
 export async function loginWithProvider(providerType) {
   // ✅ No setLoading - login page handles button disabling instead of full-screen overlay

@@ -24,10 +24,14 @@ export const db = initializeFirestore(app, {
 
 export const storage = getStorage(app);
 
-// Set persistence NON-BLOCKING so the module chain loads and the page renders.
-// The router's onAuthStateChanged handles any state transitions gracefully.
-// DO NOT use await here — it blocks all dependent modules from loading,
-// which causes the login page to stay blank if Firebase is slow.
-setPersistence(auth, browserLocalPersistence)
-  .then(() => console.log("[Firebase] Persistence set to browserLocalPersistence"))
-  .catch(err => console.warn("[Firebase] Persistence failed, using default:", err));
+// Set persistence. We also export a promise so login can await deterministically.
+export const authReady = setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    console.log("[Firebase] Persistence set to browserLocalPersistence");
+    return true;
+  })
+  .catch(err => {
+    console.warn("[Firebase] Persistence failed, using default:", err);
+    return false;
+  });
+
