@@ -24,8 +24,9 @@
       <h2 class="auth-title">Sign in to AgriWealth</h2>
       <form id="loginForm">
         <div class="input-group"><input type="email" class="input" placeholder="Email" required id="email"></div>
-        <div class="input-group"><input type="password" class="input" placeholder="Password" required id="pass"><button type="button" class="toggle-eye">Show</button></div>
+        <div class="input-group"><input type="password" class="input" placeholder="Password" required id="pass"><button type="button" class="toggle-eye" id="togglePassword">Show</button></div>
         <button type="submit" class="btn auth-submit" id="loginBtn">Sign In</button>
+        <p style="text-align:center;margin-top:12px;"><a href="#" id="forgotLink" style="color:var(--amber);font-weight:800;font-size:0.88rem;">Forgot password?</a></p>
       </form>
       <div class="social-row">
         <button class="btn btn-outline social-btn" data-provider="google">Google</button>
@@ -35,71 +36,209 @@
     </section>
   </main>
   <script type="module">
-    console.log("[Login] Page script loading");
 
-    import { loginUser, loginWithProvider } from './js/auth.js';
-    import { markRedirecting, initRouter } from './js/router.js';
+import {
+loginUser,
+loginWithProvider,
+resetPassword
+}
+from './js/auth.js';
 
-    const loginBtn = document.getElementById('loginBtn');
-    const socialBtns = document.querySelectorAll('.social-btn');
-    console.log("[Login] Login page loaded — form is visible");
+import {
+initRouter
+}
+from './js/router.js';
 
-    // Toggle password visibility
-    document.querySelector('.toggle-eye').onclick = e => {
-      const i = e.target.previousElementSibling;
-      i.type = i.type === 'password' ? 'text' : 'password';
-      e.target.textContent = i.type === 'password' ? 'Show' : 'Hide';
-    };
+import {
+showToast
+}
+from './js/utils.js';
 
-    // Form submit — prevent page refresh, disable button during login
-    document.getElementById('loginForm').onsubmit = async e => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log("[Login] Login clicked");
+console.log("[Login] Loaded");
 
-      loginBtn.disabled = true;
-      loginBtn.textContent = 'Signing in...';
+const loginBtn=
+document.getElementById(
+'loginBtn'
+);
 
-      try {
-        const success = await loginUser(
-          document.getElementById('email').value,
-          document.getElementById('pass').value
-        );
-        if (success) {
-          console.log("[Login] Authentication success");
-          // Mark redirecting BEFORE redirect so router doesn't double-redirect
-          markRedirecting();
-          console.log("[Login] Redirecting to dashboard");
-          window.location.href = 'dashboard.html';
-        }
-      } catch (error) {
-        console.error("[Login] Unexpected error:", error);
-      } finally {
-        // Loader must always stop — re-enable button
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Sign In';
-        console.log("[Login] Button re-enabled");
-      }
-    };
+const socialBtns=
+document.querySelectorAll(
+'.social-btn'
+);
 
-    // Social login — disable all buttons during popup
-    socialBtns.forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const provider = btn.dataset.provider;
-        console.log("[Login] Social login clicked:", provider);
-        socialBtns.forEach(b => b.disabled = true);
-        loginBtn.disabled = true;
-        try {
-          await loginWithProvider(provider);
-        } finally {
-          socialBtns.forEach(b => b.disabled = false);
-          loginBtn.disabled = false;
-        }
-      });
-    });
+const passInput=
+document.getElementById(
+'pass'
+);
 
-    // Register auth listener ONCE (handles redirect for already-logged-in users)
-    initRouter();
-  </script>
+const toggleBtn=
+document.getElementById(
+'togglePassword'
+);
+
+
+// Password toggle
+
+toggleBtn.addEventListener(
+'click',
+()=>{
+
+const hidden=
+passInput.type==="password";
+
+passInput.type=
+hidden
+?
+"text"
+:
+"password";
+
+toggleBtn.textContent=
+hidden
+?
+"🙈"
+:
+"👁";
+
+}
+);
+
+
+// Forgot password
+
+document
+.getElementById(
+'forgotLink'
+)
+.addEventListener(
+'click',
+async(e)=>{
+
+e.preventDefault();
+
+const email=
+document.getElementById(
+'email'
+).value.trim();
+
+if(!email){
+
+showToast(
+"Enter email first",
+"warning"
+);
+
+return;
+
+}
+
+await resetPassword(
+email
+);
+
+}
+);
+
+
+// Login submit
+
+document
+.getElementById(
+'loginForm'
+)
+.addEventListener(
+'submit',
+async(e)=>{
+
+e.preventDefault();
+
+loginBtn.disabled=true;
+
+loginBtn.textContent=
+"Signing in...";
+
+try{
+
+await loginUser(
+
+document.getElementById(
+'email'
+).value.trim(),
+
+passInput.value
+
+);
+
+// NO redirect here
+// auth.js handles redirect
+
+}
+catch(error){
+
+console.error(
+error
+);
+
+}
+finally{
+
+setTimeout(()=>{
+
+loginBtn.disabled=false;
+
+loginBtn.textContent=
+"Sign In";
+
+},1000);
+
+}
+
+}
+);
+
+
+// Social login
+
+socialBtns.forEach(
+btn=>{
+
+btn.addEventListener(
+'click',
+async()=>{
+
+const provider=
+btn.dataset.provider;
+
+socialBtns.forEach(
+b=>b.disabled=true
+);
+
+try{
+
+await loginWithProvider(
+provider
+);
+
+}
+finally{
+
+socialBtns.forEach(
+b=>b.disabled=false
+);
+
+}
+
+}
+);
+
+}
+);
+
+
+// Start router ONCE
+
+initRouter();
+
+</script>
 </body>
 </html>

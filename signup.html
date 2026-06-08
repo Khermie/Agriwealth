@@ -28,7 +28,7 @@
           <div class="input-group"><input type="text" class="input" placeholder="Last Name" required id="last"></div>
         </div>
         <div class="input-group"><input type="email" class="input" placeholder="Email" required id="email"></div>
-        <div class="input-group"><input type="password" class="input" placeholder="Password" required id="pass"><button type="button" class="toggle-eye">Show</button></div>
+        <div class="input-group"><input type="password" class="input" placeholder="Password" required id="pass"><button type="button" class="toggle-eye" id="togglePassword">Show</button></div>
         <div class="strength"><div class="strength-bar"></div></div>
         <div class="form-grid-2">
           <div class="input-group"><input type="tel" class="input" placeholder="Phone" id="phone"></div>
@@ -39,63 +39,170 @@
       <p class="auth-link">Have an account? <a href="login.html">Login</a></p>
     </section>
   </main>
-  <script type="module">
-    console.log("[Signup] Page script loading");
+<script type="module">
 
-    import { signupUser } from './js/auth.js';
-    import { markRedirecting, initRouter } from './js/router.js';
+import { signupUser } from './js/auth.js';
+import { initRouter } from './js/router.js';
 
-    const signupBtn = document.getElementById('signupBtn');
-    const p = document.getElementById('pass');
-    const bar = document.querySelector('.strength-bar');
-    console.log("[Signup] Signup page loaded — form is visible");
+console.log("[Signup] Loaded");
 
-    document.querySelector('.toggle-eye').onclick = e => {
-      p.type = p.type === 'password' ? 'text' : 'password';
-      e.target.textContent = p.type === 'password' ? 'Show' : 'Hide';
-    };
+const signupBtn =
+document.getElementById('signupBtn');
 
-    p?.addEventListener('input', () => {
-      let s = (p.value.length > 5) + (/[A-Z]/.test(p.value)) + (/[0-9]/.test(p.value));
-      bar.style.width = `${s * 33}%`;
-      bar.style.background = ['#e74c3c', '#f39c12', '#52b788'][s];
-    });
+const passInput =
+document.getElementById('pass');
 
-    // Form submit — prevent page refresh, disable button during signup
-    document.getElementById('signupForm').onsubmit = async e => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log("[Signup] Signup clicked");
+const toggleBtn =
+document.getElementById('togglePassword');
 
-      signupBtn.disabled = true;
-      signupBtn.textContent = 'Creating account...';
+const bar =
+document.querySelector('.strength-bar');
 
-      try {
-        const ok = await signupUser(
-          document.getElementById('first').value,
-          document.getElementById('last').value,
-          document.getElementById('email').value,
-          p.value,
-          document.getElementById('phone').value,
-          document.getElementById('country').value
-        );
-        if (ok) {
-          markRedirecting();
-          console.log("[Signup] Account created, redirecting to login");
-          window.location.href = 'login.html';
-        }
-      } catch (error) {
-        console.error("[Signup] Unexpected error:", error);
-      } finally {
-        // Loader must always stop — re-enable button
-        signupBtn.disabled = false;
-        signupBtn.textContent = 'Sign Up';
-        console.log("[Signup] Button re-enabled");
-      }
-    };
 
-    // Register auth listener ONCE (handles redirect for already-logged-in users)
-    initRouter();
-  </script>
+// Password show/hide
+
+toggleBtn.addEventListener(
+'click',
+()=>{
+
+const hidden=
+passInput.type==="password";
+
+passInput.type=
+hidden
+?
+'text'
+:
+'password';
+
+toggleBtn.textContent=
+hidden
+?
+'🙈'
+:
+'👁';
+
+}
+);
+
+
+// Password strength
+
+passInput.addEventListener(
+'input',
+()=>{
+
+let s=
+(passInput.value.length>5)
++
+(/[A-Z]/.test(passInput.value))
++
+(/[0-9]/.test(passInput.value));
+
+bar.style.width=
+`${s*33}%`;
+
+bar.style.background=
+[
+'#e74c3c',
+'#f39c12',
+'#52b788'
+][s];
+
+}
+);
+
+
+// Signup submit
+
+document
+.getElementById(
+'signupForm'
+)
+.addEventListener(
+'submit',
+async(e)=>{
+
+e.preventDefault();
+
+signupBtn.disabled=true;
+
+signupBtn.textContent=
+"Creating...";
+
+try{
+
+const ok=
+await signupUser(
+
+document.getElementById(
+'first'
+).value,
+
+document.getElementById(
+'last'
+).value,
+
+document.getElementById(
+'email'
+).value,
+
+passInput.value,
+
+document.getElementById(
+'phone'
+).value,
+
+document.getElementById(
+'country'
+).value
+
+);
+
+if(ok){
+
+console.log(
+"[Signup] Success"
+);
+
+// Don't use markRedirecting here
+// Signup isn't logging in
+
+setTimeout(()=>{
+
+window.location.replace(
+'login.html'
+);
+
+},500);
+
+}
+
+}catch(error){
+
+console.error(
+error
+);
+
+}
+
+finally{
+
+signupBtn.disabled=false;
+
+signupBtn.textContent=
+"Sign Up";
+
+}
+
+}
+);
+
+
+// Router listener
+
+initRouter();
+
+</script>
 </body>
 </html>

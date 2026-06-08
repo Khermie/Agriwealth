@@ -1,46 +1,125 @@
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { auth } from "./firebase-config.js";
+import {
+onAuthStateChanged
+}
+from
+"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-let _redirecting = false;
+import {
+auth
+}
+from
+"./firebase-config.js";
 
-export function initRouter() {
-  console.log("[Router] Registering onAuthStateChanged listener (once)");
+let _redirecting=false;
 
-  onAuthStateChanged(auth, (user) => {
-    // If a redirect is already in progress, skip all further auth events
-    if (_redirecting) {
-      console.log("[Router] Already redirecting — skipping auth event");
-      return;
-    }
+let _authDebounce=null;
+let _pendingUser=null;
 
-    const path = window.location.pathname.split('/').pop() || 'index.html';
-    const publicPages = ['index.html', 'login.html', 'signup.html'];
+export function initRouter(){
 
-    console.log("[Router] Auth state:", user ? `signed in (${user.uid})` : "no user", "| page:", path);
+console.log(
+"[Router] Started"
+);
 
-    // Notify auth pages that auth state has been checked
-    window.dispatchEvent(new CustomEvent('auth-resolved', {
-      detail: { user, path }
-    }));
+onAuthStateChanged(
+auth,
+(user)=>{
 
-    // Redirect rules — only ONE redirect ever happens because _redirecting guards
-    if (!user && !publicPages.includes(path)) {
-      console.log("[Router] No user on protected page → redirecting to login");
-      _redirecting = true;
-      window.location.href = 'login.html';
-    } else if (user && publicPages.includes(path)) {
-      console.log("[Router] User on public page → redirecting to dashboard");
-      _redirecting = true;
-      window.location.href = 'dashboard.html';
-    } else if (user) {
-      window.CURRENT_USER = user;
-    }
-  });
+if(_redirecting){
+
+return;
+
 }
 
-// Called by login/signup pages BEFORE they redirect after a successful sign-in.
-// This prevents the onAuthStateChanged listener from also trying to redirect.
-export function markRedirecting() {
-  console.log("[Router] Redirect marked by caller — auth listener will skip");
-  _redirecting = true;
+_pendingUser=user;
+
+clearTimeout(
+_authDebounce
+);
+
+_authDebounce=
+setTimeout(()=>{
+
+const u=_pendingUser;
+
+const path=
+window.location.pathname
+.split("/")
+.pop()
+||
+"index.html";
+
+const publicPages=[
+
+"index.html",
+"login.html",
+"signup.html"
+
+];
+
+window.dispatchEvent(
+
+new CustomEvent(
+"auth-resolved",
+{
+detail:{
+user:u,
+path
+}
+}
+)
+
+);
+
+if(
+!u &&
+!publicPages.includes(
+path
+)
+){
+
+_redirecting=true;
+
+window.location.replace(
+"login.html"
+);
+
+}
+
+else if(
+
+u &&
+publicPages.includes(
+path
+) &&
+!_redirecting
+
+){
+
+_redirecting=true;
+
+window.location.replace(
+"dashboard.html"
+);
+
+}
+
+else if(u){
+
+window.CURRENT_USER=u;
+
+}
+
+},300);
+
+}
+
+);
+
+}
+
+export function markRedirecting(){
+
+_redirecting=true;
+
 }
