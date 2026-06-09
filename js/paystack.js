@@ -1,51 +1,29 @@
-import {
-  runTransaction,
-  doc,
-  serverTimestamp,
-  increment
+import { 
+  runTransaction, 
+  doc, 
+  serverTimestamp, 
+  increment 
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
-import { db, auth, app } from "./firebase-config.js";
-import { showToast, setLoading } from "./utils.js";
+import { db, auth } from "./firebase-config.js?v=11";
+import { showToast, setLoading } from "./utils.js?v=11";
 
-const PAYSTACK_PUBLIC_KEY =
-  window.AGRIWEALTH_PAYSTACK_PUBLIC_KEY ||
-  "pk_live_14393bf34af171d50eb5d2a530c088c7dccf2a1b";
+const PAYSTACK_PUBLIC_KEY = 'pk_live_14393bf34af171d50eb5d2a530c088c7dccf2a1b';
 
 let paystackScriptPromise = null;
 let paymentInProgress = false;
-const handledReferences = new Set();
 
 function loadPaystackScript() {
   if (window.PaystackPop) return Promise.resolve(window.PaystackPop);
   if (paystackScriptPromise) return paystackScriptPromise;
 
   paystackScriptPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]');
-
-    const finishLoad = () => {
-      if (!window.PaystackPop) {
-        reject(new Error("Paystack checkout failed to initialize."));
-        return;
-      }
-
-      console.log("Paystack initialized");
-      resolve(window.PaystackPop);
-    };
-
-    if (existing) {
-      existing.addEventListener("load", finishLoad, { once: true });
-      existing.addEventListener("error", () => reject(new Error("Paystack script failed to load.")), { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://js.paystack.co/v1/inline.js";
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v1/inline.js';
     script.async = true;
-    script.onload = finishLoad;
+    script.onload = () => resolve(window.PaystackPop);
     script.onerror = () => {
       paystackScriptPromise = null;
-      reject(new Error("Paystack script failed to load. Check your internet connection."));
+      reject(new Error('Paystack script failed to load.'));
     };
     document.head.appendChild(script);
   });
@@ -53,127 +31,69 @@ function loadPaystackScript() {
   return paystackScriptPromise;
 }
 
-function getCurrentUser() {
-  return auth.currentUser;
-}
-
-function validateAmount(amount) {
-  const numericAmount = Number(amount);
-  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-    throw new Error("Please enter a valid amount.");
-  }
-
-  return Math.round(numericAmount * 100) / 100;
-}
-
-function makeReference(uid, paymentType) {
-  const randomPart = Math.random().toString(36).slice(2, 10).toUpperCase();
-  return `AGW_${paymentType.toUpperCase()}_${uid}_${Date.now()}_${randomPart}`;
-}
-
-function normalizeOptions(options = {}) {
-  return {
-    paymentType: options.paymentType || options.type || "deposit",
-    method: options.method || "paystack",
-    animalType: options.animalType || null,
-    durationHours: Number(options.durationHours || options.duration || 0),
-    minimumInvestment: Number(options.minimumInvestment || 0),
-    baseReturn: Number(options.baseReturn || 0),
-    expectedReturn: Number(options.expectedReturn || 0),
-    profit: Number(options.profit || 0),
-    roiPercent: Number(options.roiPercent || 0),
-    maturityDate: options.maturityDate || null
-  };
-}
-
-function buildNotification(payment) {
-  if (payment.paymentType === "investment") {
-    return {
-      title: "Investment Confirmed",
-      message: `GHS ${payment.amount.toFixed(2)} invested in ${payment.animalType}.`,
-      type: "investment_success"
-    };
-  }
-
-  return {
-    title: "Payment Successful",
-    message: `GHS ${payment.amount.toFixed(2)} added to your wallet.`,
-    type: "deposit_success"
-  };
-}
-
+// 🔥 DIRECT DATABASE UPDATE - No Cloud Function needed
 async function savePaymentToFirestore(payment) {
   const uid = payment.user.uid;
-  const transactionRef = doc(db, "transactions", `paystack_${payment.reference}`);
   const userRef = doc(db, "users", uid);
-  const investmentRef =
-    payment.paymentType === "investment"
-      ? doc(db, "investments", `inv_${payment.reference}`)
-      : null;
+  const txRef = doc(db, "transactions", `tx_${payment.reference}`);
 
-  await runTransaction(db, async (t) => {
-    const userSnap = await t.get(userRef);
-    if (!userSnap.exists()) {
-      throw new Error("Authenticated user profile was not found.");
-    }
+  await runTransaction(db, async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists()) throw new Error("User profile not found");
 
-    const existingTransaction = await t.get(transactionRef);
-    if (existingTransaction.exists()) {
-      return;
-    }
+    const userData = userDoc.data();
 
-    const transactionType = payment.paymentType === "investment" ? "investment" : "deposit";
-
-    t.set(transactionRef, {
+    // 1. Create transaction record
+    transaction.set(txRef, {
       userId: uid,
-      type: transactionType,
+      type: payment.paymentType === "investment" ? "investment" : "deposit",
       amount: payment.amount,
-      paymentMethod: payment.method,
+      paymentMethod: payment.method || "paystack",
       provider: "paystack",
-      status: payment.verified ? "verified" : "completed",
+      status: "completed",
       reference: payment.reference,
-      paystackReference: payment.reference,
-      paystackResponse: payment.response || null,
       animalType: payment.animalType || null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      createdAt: serverTimestamp()
     });
 
+    // 2. If it's an investment, create investment record
     if (payment.paymentType === "investment") {
-      const maturityMs = Number(payment.durationHours) * 3600000;
-      const calculatedMaturity = payment.maturityDate ? new Date(payment.maturityDate) : new Date(Date.now() + maturityMs);
-      const calculatedExpectedReturn = payment.expectedReturn || ((payment.amount / (payment.minimumInvestment || payment.amount)) * (payment.baseReturn || 0));
-      const calculatedProfit = payment.profit || (calculatedExpectedReturn - payment.amount);
-      const calculatedRoiPercent = payment.roiPercent || ((calculatedProfit / payment.amount) * 100);
+      const invRef = doc(db, "investments", `inv_${payment.reference}`);
+      const durationHours = payment.durationHours || 0;
+      const maturityDate = new Date(Date.now() + (durationHours * 3600000));
+      
+      const expectedReturn = payment.expectedReturn || payment.amount;
+      const profit = expectedReturn - payment.amount;
+      const roiPercent = payment.amount > 0 ? (profit / payment.amount) * 100 : 0;
 
-      t.set(investmentRef, {
+      transaction.set(invRef, {
         userId: uid,
         animalType: payment.animalType,
         amount: payment.amount,
-        minimumInvestment: payment.minimumInvestment || payment.amount,
-        baseReturn: payment.baseReturn || 0,
-        expectedReturn: calculatedExpectedReturn,
-        profit: calculatedProfit,
-        roiPercent: calculatedRoiPercent,
-        durationHours: Number(payment.durationHours) || 0,
+        expectedReturn: expectedReturn,
+        profit: profit,
+        roiPercent: roiPercent,
+        durationHours: durationHours,
         status: "active",
-        paymentMethod: payment.method,
+        paymentMethod: payment.method || "paystack",
         paymentReference: payment.reference,
         payoutProcessed: false,
         startDate: serverTimestamp(),
-        createdAt: serverTimestamp(),
-        maturityDate: calculatedMaturity
+        maturityDate: maturityDate,
+        createdAt: serverTimestamp()
       });
 
-      t.update(userRef, {
+      // 3. Update user stats for investment
+      transaction.update(userRef, {
         totalInvestment: increment(payment.amount),
         activeInvestmentCount: increment(1),
-        totalDeposits: increment(payment.amount),
+        walletBalance: increment(-payment.amount), // Deduct from wallet
         lastDeposit: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
     } else {
-      t.update(userRef, {
+      // 4. For deposits, just update wallet
+      transaction.update(userRef, {
         walletBalance: increment(payment.amount),
         totalDeposits: increment(payment.amount),
         lastDeposit: serverTimestamp(),
@@ -182,28 +102,7 @@ async function savePaymentToFirestore(payment) {
     }
   });
 
-  console.log("Firestore transaction saved");
-  console.warn("Notification creation requires the Paystack Cloud Function under current Firestore rules.");
-}
-
-async function verifyViaCloudFunction(payment) {
-  const functions = getFunctions(app);
-  const verifyPaystack = httpsCallable(functions, "verifyPaystackDeposit");
-  const result = await verifyPaystack({
-    reference: payment.reference,
-    amount: payment.amount,
-    method: payment.method,
-    paymentType: payment.paymentType,
-    animalType: payment.animalType,
-    duration: payment.duration,
-    roi: payment.roi
-  });
-
-  if (!result.data?.success) {
-    throw new Error(result.data?.message || "Payment verification was unsuccessful.");
-  }
-
-  return result.data;
+  console.log("✅ Payment saved to Firestore");
 }
 
 function showReceiptModal(payment) {
@@ -222,20 +121,22 @@ function showReceiptModal(payment) {
     padding: "20px"
   });
 
-  const receiptTitle = payment.paymentType === "investment" ? "Investment Receipt" : "Payment Receipt";
-  const receiptDetail =
-    payment.paymentType === "investment"
-      ? `<p><strong>Asset:</strong> ${payment.animalType}</p>`
-      : "";
+  const isInvestment = payment.paymentType === "investment";
+  const title = isInvestment ? "Investment Successful" : "Payment Successful";
+  const details = isInvestment ? `
+    <p style="color:var(--pale-green);margin:12px 0;"><strong>Asset:</strong> ${payment.animalType}</p>
+    <p style="color:var(--pale-green);margin:12px 0;"><strong>Duration:</strong> ${payment.durationHours} hours</p>
+    <p style="color:var(--bright-green);margin:12px 0;"><strong>Expected Return:</strong> GHS ${(payment.expectedReturn || payment.amount).toFixed(2)}</p>
+  ` : '';
 
   modal.innerHTML = `
     <div class="glass" style="width:100%;max-width:420px;padding:28px;">
-      <h3 style="margin-bottom:16px;">${receiptTitle}</h3>
-      <p><strong>Amount:</strong> GHS ${payment.amount.toFixed(2)}</p>
-      ${receiptDetail}
-      <p><strong>Reference:</strong> ${payment.reference}</p>
-      <p><strong>Status:</strong> Successful</p>
-      <button class="btn" id="paystackReceiptDone" style="width:100%;margin-top:20px;">Done</button>
+      <h3 style="margin-bottom:16px;color:var(--cream);">${title}</h3>
+      <p style="color:var(--pale-green);margin:12px 0;"><strong>Amount:</strong> GHS ${payment.amount.toFixed(2)}</p>
+      ${details}
+      <p style="color:var(--pale-green);margin:12px 0;"><strong>Reference:</strong> ${payment.reference}</p>
+      <p style="color:var(--bright-green);margin:12px 0;"><strong>Status:</strong> ${isInvestment ? 'Investment Active' : 'Wallet Updated'}</p>
+      <button class="btn" id="paystackReceiptDone" style="width:100%;margin-top:20px;">Go to Dashboard</button>
     </div>
   `;
 
@@ -246,88 +147,35 @@ function showReceiptModal(payment) {
   };
 }
 
-function canUseClientFallback(error) {
-  const code = String(error?.code || "");
-  return [
-    "functions/unavailable",
-    "functions/not-found",
-    "functions/deadline-exceeded",
-    "functions/internal"
-  ].some((allowedCode) => code.includes(allowedCode));
-}
-
-async function finalizePayment(payment, onSuccess) {
-  if (handledReferences.has(payment.reference)) return;
-  handledReferences.add(payment.reference);
-
-  setLoading(true);
-  try {
-    let verifiedData = null;
-
-    try {
-      verifiedData = await verifyViaCloudFunction(payment);
-      payment.verified = true;
-      console.log("Firestore transaction saved");
-    } catch (error) {
-      if (!canUseClientFallback(error)) {
-        throw error;
-      }
-
-      console.warn("Paystack server verification unavailable; saving client-confirmed payment.", error);
-      payment.verified = false;
-      await savePaymentToFirestore(payment);
-    }
-
-    console.log("Payment successful");
-    showToast("Payment successful", "success");
-
-    if (onSuccess) {
-      await onSuccess({ ...payment, verification: verifiedData });
-    }
-
-    showReceiptModal(payment);
-  } catch (error) {
-    handledReferences.delete(payment.reference);
-    console.error("Paystack payment finalization failed:", error);
-    showToast(error.message || "Payment could not be saved. Contact support with your reference.", "error");
-  } finally {
-    paymentInProgress = false;
-    setLoading(false);
-  }
-}
-
 export async function openPaystack(amount, email, onSuccess, options = {}) {
   if (paymentInProgress) {
     showToast("A payment is already in progress.", "warning");
     return;
   }
 
-  let numericAmount;
-  try {
-    numericAmount = validateAmount(amount);
-  } catch (error) {
-    showToast(error.message, "warning");
+  const numericAmount = Number(amount);
+  if (!numericAmount || numericAmount <= 0) {
+    showToast("Please enter a valid amount", "warning");
     return;
   }
 
-  const user = getCurrentUser();
+  const user = auth.currentUser;
   if (!user) {
-    showToast("Please login first.", "warning");
+    showToast("Please login first", "warning");
     window.location.href = "login.html";
     return;
   }
 
   const customerEmail = String(email || user.email || "").trim();
   if (!customerEmail || !customerEmail.includes("@")) {
-    showToast("A valid account email is required for payment.", "warning");
+    showToast("Valid email required", "warning");
     return;
   }
 
-  const paymentOptions = normalizeOptions(options);
-  if (paymentOptions.paymentType === "investment" && !paymentOptions.animalType) {
-    showToast("Please select an investment asset.", "warning");
-    return;
-  }
+  const paymentType = options.paymentType || "deposit";
+  const animalType = options.animalType || null;
+  const durationHours = options.durationHours || options.duration || 0;
+  const expectedReturn = options.expectedReturn || options.baseReturn || numericAmount;
 
   try {
     paymentInProgress = true;
@@ -336,9 +184,9 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
     await loadPaystackScript();
 
     const amountInKobo = Math.round(numericAmount * 100);
-    const reference = makeReference(user.uid, paymentOptions.paymentType);
+    const reference = `AGW_${paymentType.toUpperCase()}_${user.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    console.log("Payment started");
+    console.log("💳 Starting payment:", { amount: numericAmount, type: paymentType, reference });
 
     const handler = window.PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
@@ -348,52 +196,68 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
       ref: reference,
       metadata: {
         userId: user.uid,
-        paymentType: paymentOptions.paymentType,
-        animalType: paymentOptions.animalType,
-        durationHours: paymentOptions.durationHours,
-        minimumInvestment: paymentOptions.minimumInvestment,
-        baseReturn: paymentOptions.baseReturn,
-        expectedReturn: paymentOptions.expectedReturn,
-        profit: paymentOptions.profit,
-        roiPercent: paymentOptions.roiPercent,
-        maturityDate: paymentOptions.maturityDate,
+        paymentType: paymentType,
+        animalType: animalType,
+        durationHours: durationHours,
+        expectedReturn: expectedReturn,
         custom_fields: [
           { display_name: "User ID", variable_name: "user_id", value: user.uid },
-          { display_name: "Payment Type", variable_name: "payment_type", value: paymentOptions.paymentType }
+          { display_name: "Payment Type", variable_name: "payment_type", value: paymentType }
         ]
       },
       channels: ["card", "mobile_money", "bank"],
-      callback: function (response) {
-        finalizePayment({
-          ...paymentOptions,
-          user,
-          email: customerEmail,
-          amount: numericAmount,
-          amountInKobo,
-          reference: response.reference || reference,
-          response
-        }, onSuccess);
-      },
-      onClose: function () {
-        if (!handledReferences.has(reference)) {
+      callback: async function(response) {
+        console.log("✅ Paystack success:", response);
+        showToast("Payment successful! Updating records...", "info");
+
+        try {
+          // 🔥 DIRECT DATABASE UPDATE
+          await savePaymentToFirestore({
+            user,
+            amount: numericAmount,
+            reference: response.reference || reference,
+            method: "paystack",
+            paymentType: paymentType,
+            animalType: animalType,
+            durationHours: durationHours,
+            expectedReturn: expectedReturn
+          });
+
+          showToast("✅ Records updated successfully!", "success");
+          
+          if (onSuccess) await onSuccess(response);
+          
+          showReceiptModal({
+            amount: numericAmount,
+            reference: response.reference || reference,
+            paymentType: paymentType,
+            animalType: animalType,
+            durationHours: durationHours,
+            expectedReturn: expectedReturn
+          });
+
+        } catch (err) {
+          console.error("❌ Database update failed:", err);
+          showToast("Payment received but update failed. Contact support with ref: " + (response.reference || reference), "error");
+        } finally {
           paymentInProgress = false;
-          showToast("Payment cancelled", "info");
-          console.log("Payment cancelled");
+          setLoading(false);
         }
+      },
+      onClose: function() {
+        paymentInProgress = false;
+        setLoading(false);
+        showToast("Payment cancelled", "info");
       }
     });
 
     setLoading(false);
     handler.openIframe();
+
   } catch (error) {
     paymentInProgress = false;
     setLoading(false);
-    console.error("Paystack initialization failed:", error);
-    showToast(error.message || "Failed to open payment.", "error");
+    console.error("❌ Payment failed:", error);
+    showToast(error.message || "Failed to open payment", "error");
   }
-}
-
-export async function depositToWallet() {
-  console.warn("depositToWallet is handled by openPaystack after payment confirmation.");
-  return true;
 }
