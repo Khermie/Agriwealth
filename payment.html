@@ -47,22 +47,40 @@
     </section>
   </main>
   <script type="module">
-    import { auth } from './js/firebase-config.js';
-    import { openPaystack } from './js/paystack.js';
-    import { initRouter } from './js/router.js';
-    initRouter();
-    document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
-    let method = 'card';
-    document.querySelectorAll('.method-btn').forEach(b => b.onclick = () => {
-      document.querySelectorAll('.method-btn').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      method = b.dataset.method;
+  import { auth } from './js/firebase-config.js?v=14';
+  import { openPaystack } from './js/paystack.js?v=14';
+  import { initRouter } from './js/router.js?v=14';
+  
+  initRouter();
+  document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
+  
+  let method = 'card';
+  document.querySelectorAll('.method-btn').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.method-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    method = b.dataset.method;
+  });
+  
+  // ✅ FIXED: Provide a proper callback function instead of null
+  document.getElementById('paymentForm').onsubmit = e => {
+    e.preventDefault();
+    const amt = parseFloat(document.getElementById('payAmount').value);
+    
+    if (!amt || amt < 100) {
+      alert('Minimum deposit is GHS 100');
+      return;
+    }
+    
+    console.log("💳 Opening Paystack for deposit:", amt);
+    
+    // ✅ FIXED: Pass an actual function, not null
+    openPaystack(amt, auth.currentUser?.email, (response) => {
+      console.log("✅ Deposit successful:", response);
+    }, { 
+      paymentType: 'deposit', 
+      method: method 
     });
-    document.getElementById('paymentForm').onsubmit = e => {
-      e.preventDefault();
-      const amt = parseFloat(document.getElementById('payAmount').value);
-      openPaystack(amt, auth.currentUser?.email, null, { paymentType:'deposit', method });
-    };
-  </script>
+  };
+</script>
 </body>
 </html>
