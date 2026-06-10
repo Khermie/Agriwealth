@@ -4,30 +4,68 @@ import {
   serverTimestamp, 
   increment 
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { db, auth } from "./firebase-config.js?v=14";
-import { showToast, setLoading } from "./utils.js?v=14";
+import { db, auth } from "./firebase-config.js?v=16";
+import { showToast, setLoading } from "./utils.js?v=16";
 
 const PAYSTACK_PUBLIC_KEY = 'pk_test_db1821c1832ae2649f294e91c1a443ba1507ae2d';
 
 // 🔥 GLOBAL HANDLER
-window.handlePaystackCallback = async function(response, paymentData) {
+window.handlePaystackCallback = async function(response, paymentData, userId) {
   console.log("✅ Paystack Callback Triggered:", response);
+  console.log("User ID:", userId);
   showToast("Payment successful! Updating wallet...", "info");
 
   try {
-    const user = auth.currentUser;
-    if (!user) throw new Error("User not logged in");
+    if (!userId) {
+      throw new Error("User ID not found. Please login again.");
+    }
 
     const txRef = doc(db, "transactions", `tx_${response.reference}`);
-    const userRef = doc(db, "users", user.uid);
+    const userRef = doc(db, "users", userId);
+
+    console.log("Updating Firestore for user:", userId);
 
     await runTransaction(db, async (transaction) => {
       const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists()) throw new Error("User not found");
+      
+      // 🔥 FIX: If user profile doesn't exist, create it!
+      if (!userDoc.exists()) {
+        console.log("⚠️ User profile not found - creating it now...");
+        
+        const user = auth.currentUser;
+        const email = user?.email || "unknown";
+        const displayName = user?.displayName || "User";
+        const nameParts = displayName.split(" ");
+        const firstName = nameParts[0] || "User";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        // Create the missing user profile
+        transaction.set(userRef, {
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          phone: "",
+          country: "",
+          profileImage: null,
+          kycStatus: "pending",
+          walletBalance: 0,
+          totalInvestment: 0,
+          activeInvestmentCount: 0,
+          totalReturns: 0,
+          totalDeposits: 0,
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        
+        console.log("✅ User profile created!");
+      }
+
+      console.log("Creating transaction record...");
 
       // Create transaction record
       transaction.set(txRef, {
-        userId: user.uid,
+        userId: userId,
         type: paymentData.paymentType || "deposit",
         amount: paymentData.amount,
         paymentMethod: paymentData.method || "paystack",
@@ -48,7 +86,7 @@ window.handlePaystackCallback = async function(response, paymentData) {
         const roiPercent = paymentData.amount > 0 ? (profit / paymentData.amount) * 100 : 0;
 
         transaction.set(invRef, {
-          userId: user.uid,
+          userId: userId,
           animalType: paymentData.animalType,
           amount: paymentData.amount,
           expectedReturn: expectedReturn,
@@ -68,18 +106,22 @@ window.handlePaystackCallback = async function(response, paymentData) {
           totalInvestment: increment(paymentData.amount),
           activeInvestmentCount: increment(1),
           walletBalance: increment(-paymentData.amount),
-          lastDeposit: serverTimestamp()
+          lastDeposit: serverTimestamp(),
+          updatedAt: serverTimestamp()
         });
       } else {
-        // Simple deposit
+        // Simple deposit - add to wallet
+        console.log("Adding deposit to wallet...");
         transaction.update(userRef, {
           walletBalance: increment(paymentData.amount),
           totalDeposits: increment(paymentData.amount),
-          lastDeposit: serverTimestamp()
+          lastDeposit: serverTimestamp(),
+          updatedAt: serverTimestamp()
         });
       }
     });
 
+    console.log("✅ Firestore transaction successful!");
     showToast("✅ Wallet updated! Redirecting...", "success");
     
     setTimeout(() => {
@@ -88,6 +130,7 @@ window.handlePaystackCallback = async function(response, paymentData) {
 
   } catch (error) {
     console.error("❌ Callback error:", error);
+    console.error("Error details:", error.message);
     showToast("Payment received but update failed. Contact support with ref: " + response.reference, "error");
   }
 };
@@ -145,9 +188,14 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
     const amountInKobo = Math.round(numericAmount * 100);
     const reference = `AGW_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    console.log("💳 Initializing Paystack:", { amount: numericAmount, email: customerEmail, ref: reference });
+    console.log("💳 Initializing Paystack:", { 
+      amount: numericAmount, 
+      email: customerEmail, 
+      ref: reference,
+      userId: user.uid 
+    });
 
-    // Store payment data globally
+    // Store payment data globally WITH user ID
     window.currentPaymentData = {
       amount: numericAmount,
       paymentType: paymentType,
@@ -156,10 +204,11 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
       expectedReturn: expectedReturn,
       roiPercent: roiPercent,
       method: method,
-      reference: reference
+      reference: reference,
+      userId: user.uid
     };
 
-    // 🔥 SIMPLE CALLBACK - Just call the global handler
+    // Callback
     const handler = window.PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: customerEmail,
@@ -169,7 +218,6 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
       callback: function(response) {
         console.log("✅ Paystack callback fired!");
         
-        // ✅ FIXED: Check if onSuccess is a function before calling it
         if (typeof onSuccess === 'function') {
           try {
             onSuccess(response);
@@ -178,8 +226,7 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
           }
         }
         
-        // Call the global handler
-        window.handlePaystackCallback(response, window.currentPaymentData);
+        window.handlePaystackCallback(response, window.currentPaymentData, window.currentPaymentData.userId);
       },
       onClose: function() {
         console.log("Payment cancelled");
