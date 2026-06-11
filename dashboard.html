@@ -348,94 +348,61 @@
     <div class="maturity-toast-msg" id="maturityToastMsg"></div>
   </div>
 
- <script type="module">
-  import { auth, db } from './js/firebase-config.js?v=19';
-  import { doc, onSnapshot, collection, query, where, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { logoutUser } from './js/auth.js?v=19';
-  import { initRouter } from './js/router.js?v=19';
+<script type="module">
+  import { auth, db } from './js/firebase-config.js';
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { logoutUser } from './js/auth.js';
+  import { initRouter } from './js/router.js';
 
   window.logout = logoutUser;
   initRouter();
-  document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
 
-  // 🔥 FORCE FRESH DATA FETCH
-  async function loadUserData(uid) {
+  console.log("[Dashboard] Script loaded");
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      console.log("[Dashboard] No user");
+      return;
+    }
+
+    console.log("[Dashboard] User:", user.uid);
+
     try {
-      console.log("[Dashboard] Loading fresh data for user:", uid);
-      
-      const userRef = doc(db, "users", uid);
+      // 🔥 FORCE FRESH FETCH EVERY TIME
+      console.log("[Dashboard] Fetching user data...");
+      const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
-      
+
       if (userSnap.exists()) {
         const data = userSnap.data();
-        console.log("[Dashboard] ✅ User data loaded:", data);
-        console.log("[Dashboard] 💰 Wallet balance:", data.walletBalance);
-        
-        // Update UI
-        document.getElementById('walletBal').textContent = `GHS ${(data.walletBalance || 0).toFixed(2)}`;
-        document.getElementById('portfolioVal').textContent = `GHS ${(data.totalInvestment || 0).toFixed(2)}`;
-        document.getElementById('activeCount').textContent = data.activeInvestmentCount || 0;
-        
-        // Also set up real-time listener for future updates
-        setupRealTimeListeners(uid);
+        console.log("[Dashboard] ✅ Data loaded:", data);
+        console.log("[Dashboard] 💰 Wallet:", data.walletBalance);
+
+        // Update wallet
+        const walletEl = document.getElementById('walletBal');
+        if (walletEl) {
+          walletEl.textContent = `GHS ${(data.walletBalance || 0).toFixed(2)}`;
+          console.log("[Dashboard] Updated wallet display");
+        }
+
+        // Update portfolio
+        const portfolioEl = document.getElementById('portfolioVal');
+        if (portfolioEl) {
+          portfolioEl.textContent = `GHS ${(data.totalInvestment || 0).toFixed(2)}`;
+        }
+
+        // Update active count
+        const activeEl = document.getElementById('activeCount');
+        if (activeEl) {
+          activeEl.textContent = data.activeInvestmentCount || 0;
+        }
+
       } else {
         console.error("[Dashboard] ❌ User document not found!");
       }
     } catch (error) {
-      console.error("[Dashboard] Error loading data:", error);
+      console.error("[Dashboard] Error:", error);
     }
-  }
-
-  function setupRealTimeListeners(uid) {
-    console.log("[Dashboard] Setting up real-time listeners...");
-    
-    // User data listener
-    const userRef = doc(db, "users", uid);
-    onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        console.log("[Dashboard] 🔄 Real-time update - Wallet:", data.walletBalance);
-        document.getElementById('walletBal').textContent = `GHS ${(data.walletBalance || 0).toFixed(2)}`;
-        document.getElementById('portfolioVal').textContent = `GHS ${(data.totalInvestment || 0).toFixed(2)}`;
-        document.getElementById('activeCount').textContent = data.activeInvestmentCount || 0;
-      }
-    }, (error) => {
-      console.error("[Dashboard] Listener error:", error);
-    });
-
-    // Transactions listener
-    const txQuery = query(
-      collection(db, "transactions"), 
-      where("userId", "==", uid), 
-      orderBy("createdAt", "desc"), 
-      limit(10)
-    );
-
-    onSnapshot(txQuery, (snapshot) => {
-      console.log("[Dashboard] 📋 Transactions:", snapshot.size);
-      const txContainer = document.getElementById('txContainer');
-      if (!txContainer) return;
-      
-      if (snapshot.empty) {
-        txContainer.innerHTML = '<div class="empty-state">Recent deposits and investments will appear here.</div>';
-      } else {
-        txContainer.innerHTML = snapshot.docs.map(doc => {
-          const t = doc.data();
-          const isDeposit = t.type === 'deposit';
-          const date = t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
-          return `<div class="activity-row"><div><strong>${t.type}</strong>${t.animalType ? `<br><small style="color:var(--amber)">${t.animalType}</small>` : ''}<br><small>${date}</small></div><div class="${isDeposit ? 'positive' : 'warning'}">${isDeposit ? '+' : '-'}GHS ${t.amount}</div></div>`;
-        }).join('');
-      }
-    });
-  }
-
-  // Initialize on auth
-  auth.onAuthStateChanged(user => {
-    if (!user) return;
-    console.log("[Dashboard] User authenticated:", user.uid);
-    
-    // Load data immediately
-    loadUserData(user.uid);
   });
 </script>
 </body>
