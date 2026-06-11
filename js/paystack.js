@@ -7,7 +7,7 @@ import {
 import { db, auth } from "./firebase-config.js?v=16";
 import { showToast, setLoading } from "./utils.js?v=16";
 
-const PAYSTACK_PUBLIC_KEY = 'pk_live_dd2186054955f667ffb1af8ea935dfca127d01a2';
+const PAYSTACK_PUBLIC_KEY = 'pk_test_db1821c1832ae2649f294e91c1a443ba1507ae2d';
 
 // 🔥 GLOBAL HANDLER
 window.handlePaystackCallback = async function(response, paymentData, userId) {
