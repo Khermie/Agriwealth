@@ -1,133 +1,114 @@
 import { 
-  runTransaction, 
   doc, 
   serverTimestamp, 
   increment,
   getDoc,
-  setDoc
+  setDoc,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { db, auth } from "./firebase-config.js?v=24";
-import { showToast, setLoading } from "./utils.js?v=24";
+import { db, auth } from "./firebase-config.js?v=25";
+import { showToast, setLoading } from "./utils.js?v=25";
 
 const PAYSTACK_PUBLIC_KEY = 'pk_test_db1821c1832ae2649f294e91c1a443ba1507ae2d';
 
-// 🔥 GLOBAL HANDLER
+// 🔥 GLOBAL HANDLER - Simplified without transactions
 window.handlePaystackCallback = async function(response, paymentData, userId) {
   console.log("[Paystack] Payment successful:", response);
   console.log("[Paystack] User ID:", userId);
-  console.log("[Paystack] Payment data:", paymentData);
+  console.log("[Paystack] Auth UID:", auth.currentUser?.uid);
 
   try {
     if (!userId) {
-      throw new Error("User ID not found. Please login again.");
+      throw new Error("User ID not found");
     }
 
-    const txRef = doc(db, "transactions", `tx_${response.reference}`);
     const userRef = doc(db, "users", userId);
+    const txRef = doc(db, "transactions", `tx_${response.reference}`);
 
-    // Check for duplicate transaction
-    console.log("[Paystack] Checking for duplicate...");
-    const existingTx = await getDoc(txRef);
-    if (existingTx.exists()) {
-      console.warn("[Paystack] Duplicate transaction detected");
-      showToast("Payment already processed. Redirecting...", "warning");
-      setTimeout(() => {
-        window.location.replace("dashboard.html");
-      }, 2000);
-      return;
+    // Step 1: Check if user exists, create if not
+    console.log("[Paystack] Checking user document...");
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      console.log("[Paystack] Creating user profile...");
+      const user = auth.currentUser;
+      
+      await setDoc(userRef, {
+        firstName: user?.displayName?.split(" ")[0] || "User",
+        lastName: user?.displayName?.split(" ").slice(1).join(" ") || "",
+        email: user?.email || "unknown",
+        phone: "",
+        country: "",
+        profileImage: null,
+        kycStatus: "pending",
+        walletBalance: 0,
+        totalInvestment: 0,
+        activeInvestmentCount: 0,
+        totalReturns: 0,
+        totalDeposits: 0,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      console.log("[Paystack] ✅ User profile created");
     }
 
-    console.log("[Paystack] Starting wallet update...");
-
-    // 🔥 SIMPLIFIED: Use setDoc with merge instead of complex transaction
-    await runTransaction(db, async (transaction) => {
-      // Get user doc
-      const userDoc = await transaction.get(userRef);
-      
-      if (!userDoc.exists()) {
-        // Create user profile if it doesn't exist
-        const user = auth.currentUser;
-        const email = user?.email || "unknown";
-        const displayName = user?.displayName || "User";
-        const nameParts = displayName.split(" ");
-        const firstName = nameParts[0] || "User";
-        const lastName = nameParts.slice(1).join(" ") || "";
-
-        // Create user document
-        await setDoc(userRef, {
-          firstName: firstName,
-          lastName: lastName,
-          email: email,
-          phone: "",
-          country: "",
-          profileImage: null,
-          kycStatus: "pending",
-          walletBalance: 0,
-          totalInvestment: 0,
-          activeInvestmentCount: 0,
-          totalReturns: 0,
-          totalDeposits: 0,
-          createdAt: serverTimestamp(),
-          lastLogin: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        console.log("[Paystack] User profile created");
-      }
-
-      // Create transaction record
-      transaction.set(txRef, {
-        userId: userId,
-        type: paymentData.paymentType || "deposit",
-        amount: paymentData.amount,
-        paymentMethod: paymentData.method || "paystack",
-        provider: "paystack",
-        status: "success",
-        reference: response.reference,
-        paystackReference: response.reference,
-        animalType: paymentData.animalType || null,
-        createdAt: serverTimestamp()
-      });
-
-      // Update wallet balance
-      if (paymentData.paymentType === "investment") {
-        // For investment: deduct from wallet
-        transaction.update(userRef, {
-          totalInvestment: increment(paymentData.amount),
-          activeInvestmentCount: increment(1),
-          walletBalance: increment(-paymentData.amount),
-          lastDeposit: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      } else {
-        // For deposit: add to wallet
-        transaction.update(userRef, {
-          walletBalance: increment(paymentData.amount),
-          totalDeposits: increment(paymentData.amount),
-          lastDepositAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      }
+    // Step 2: Create transaction record
+    console.log("[Paystack] Creating transaction record...");
+    await setDoc(txRef, {
+      userId: userId,
+      type: paymentData.paymentType || "deposit",
+      amount: paymentData.amount,
+      paymentMethod: paymentData.method || "paystack",
+      provider: "paystack",
+      status: "success",
+      reference: response.reference,
+      paystackReference: response.reference,
+      animalType: paymentData.animalType || null,
+      createdAt: serverTimestamp()
     });
+    console.log("[Paystack] ✅ Transaction record created");
 
-    console.log("[Paystack] ✅ Transaction successful!");
+    // Step 3: Update wallet balance
+    console.log("[Paystack] Updating wallet...");
+    if (paymentData.paymentType === "investment") {
+      await updateDoc(userRef, {
+        totalInvestment: increment(paymentData.amount),
+        activeInvestmentCount: increment(1),
+        walletBalance: increment(-paymentData.amount),
+        lastDeposit: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      console.log("[Paystack] ✅ Investment recorded");
+    } else {
+      await updateDoc(userRef, {
+        walletBalance: increment(paymentData.amount),
+        totalDeposits: increment(paymentData.amount),
+        lastDepositAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      console.log("[Paystack] ✅ Wallet updated");
+    }
+
+    console.log("[Paystack] ✅✅✅ ALL OPERATIONS SUCCESSFUL");
     showToast("✅ Deposit successful! Wallet updated.", "success");
     
-    // Redirect to dashboard
     setTimeout(() => {
       window.location.replace("dashboard.html?refresh=" + Date.now());
     }, 2000);
 
   } catch (error) {
-    console.error("[Paystack] ❌ Transaction failed:", error);
+    console.error("[Paystack] ❌ Error:", error);
     console.error("[Paystack] Error code:", error.code);
     console.error("[Paystack] Error message:", error.message);
     
-    // More specific error messages
     let errorMsg = "Payment received but update failed. ";
+    
     if (error.code === "permission-denied") {
-      errorMsg += "Permission error. Contact support.";
-    } else if (error.code === "already-exists") {
-      errorMsg += "Transaction already exists.";
+      errorMsg += "Permission denied. Check Firestore rules.";
+      console.error("[Paystack] Firestore Rules Issue - Current user:", auth.currentUser);
+    } else if (error.code === "not-found") {
+      errorMsg += "Document not found.";
     } else {
       errorMsg += "Contact support with ref: " + response.reference;
     }
@@ -187,7 +168,7 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
     const amountInKobo = Math.round(numericAmount * 100);
     const reference = `AGW_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    console.log("[Paystack] Initializing:", { amount: numericAmount, ref: reference });
+    console.log("[Paystack] Initializing:", { amount: numericAmount, ref: reference, uid: user.uid });
 
     window.currentPaymentData = {
       amount: numericAmount,
