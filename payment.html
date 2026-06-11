@@ -47,9 +47,9 @@
     </section>
   </main>
   <script type="module">
-  import { auth } from './js/firebase-config.js?v=14';
-  import { openPaystack } from './js/paystack.js?v=14';
-  import { initRouter } from './js/router.js?v=14';
+  import { auth } from './js/firebase-config.js?v=22';
+  import { openPaystack } from './js/paystack.js?v=22';
+  import { initRouter } from './js/router.js?v=22';
   
   initRouter();
   document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
@@ -61,7 +61,7 @@
     method = b.dataset.method;
   });
   
-  // ✅ FIXED: Provide a proper callback function instead of null
+  // Form submit handler
   document.getElementById('paymentForm').onsubmit = e => {
     e.preventDefault();
     const amt = parseFloat(document.getElementById('payAmount').value);
@@ -71,11 +71,11 @@
       return;
     }
     
-    console.log("💳 Opening Paystack for deposit:", amt);
+    console.log("[Paystack] Opening deposit payment:", amt, "method:", method);
     
-    // ✅ FIXED: Pass an actual function, not null
+    // Pass callback to handle success
     openPaystack(amt, auth.currentUser?.email, (response) => {
-      console.log("✅ Deposit successful:", response);
+      console.log("[Paystack] Deposit callback - payment completed:", response.reference);
     }, { 
       paymentType: 'deposit', 
       method: method 

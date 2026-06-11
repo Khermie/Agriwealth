@@ -2,7 +2,8 @@ import {
   runTransaction, 
   doc, 
   serverTimestamp, 
-  increment 
+  increment,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { db, auth } from "./firebase-config.js?v=21";
 import { showToast, setLoading } from "./utils.js?v=21";
@@ -11,9 +12,9 @@ const PAYSTACK_PUBLIC_KEY = 'pk_test_db1821c1832ae2649f294e91c1a443ba1507ae2d';
 
 // 🔥 GLOBAL HANDLER
 window.handlePaystackCallback = async function(response, paymentData, userId) {
-  console.log("✅ Paystack Callback Triggered:", response);
-  console.log("User ID:", userId);
-  showToast("Payment successful! Updating wallet...", "info");
+  console.log("[Paystack] Payment successful:", response);
+  console.log("[Paystack] User ID:", userId);
+  console.log("[Paystack] Payment data:", paymentData);
 
   try {
     if (!userId) {
@@ -23,14 +24,27 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
     const txRef = doc(db, "transactions", `tx_${response.reference}`);
     const userRef = doc(db, "users", userId);
 
-    console.log("Updating Firestore for user:", userId);
+    console.log("[Paystack] Checking for duplicate transaction...");
+
+    // CHECK FOR DUPLICATE - verify transaction doesn't already exist
+    const existingTx = await getDoc(txRef);
+    if (existingTx.exists()) {
+      console.warn("[Paystack] ⚠️ Duplicate detected - transaction already exists:", response.reference);
+      showToast("Payment already processed. Redirecting to dashboard...", "warning");
+      setTimeout(() => {
+        window.location.replace("dashboard.html");
+      }, 2000);
+      return; // STOP - don't credit wallet again
+    }
+
+    console.log("[Paystack] No duplicate found - proceeding with wallet update...");
 
     await runTransaction(db, async (transaction) => {
       const userDoc = await transaction.get(userRef);
       
-      // 🔥 FIX: If user profile doesn't exist, create it!
+      // If user profile doesn't exist, create it
       if (!userDoc.exists()) {
-        console.log("⚠️ User profile not found - creating it now...");
+        console.log("[Paystack] ⚠️ User profile not found - creating it now...");
         
         const user = auth.currentUser;
         const email = user?.email || "unknown";
@@ -58,26 +72,28 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
           updatedAt: serverTimestamp()
         });
         
-        console.log("✅ User profile created!");
+        console.log("[Paystack] ✅ User profile created");
       }
 
-      console.log("Creating transaction record...");
+      console.log("[Paystack] Creating transaction record...");
 
-      // Create transaction record
+      // Create transaction record (this is the duplicate check - set will fail if exists)
       transaction.set(txRef, {
         userId: userId,
         type: paymentData.paymentType || "deposit",
         amount: paymentData.amount,
         paymentMethod: paymentData.method || "paystack",
         provider: "paystack",
-        status: "completed",
+        status: "success",
         reference: response.reference,
+        paystackReference: response.reference,
         animalType: paymentData.animalType || null,
         createdAt: serverTimestamp()
       });
 
       // Update wallet or create investment
       if (paymentData.paymentType === "investment") {
+        console.log("[Paystack] Processing investment...");
         const invRef = doc(db, "investments", `inv_${response.reference}`);
         const maturityDate = new Date(Date.now() + ((paymentData.durationHours || 0) * 3600000));
         
@@ -109,36 +125,33 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
           lastDeposit: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
+        
+        console.log("[Paystack] Investment created:", paymentData.amount);
       } else {
         // Simple deposit - add to wallet
-        console.log("Adding deposit to wallet...");
+        console.log("[Paystack] Processing deposit to wallet:", paymentData.amount);
         transaction.update(userRef, {
           walletBalance: increment(paymentData.amount),
           totalDeposits: increment(paymentData.amount),
-          lastDeposit: serverTimestamp(),
+          lastDepositAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
       }
     });
 
-    console.log("✅ Firestore transaction successful!");
-    showToast("✅ Wallet updated! Redirecting...", "success");
+    console.log("[Paystack] ✅ Transaction saved to Firestore");
+    console.log("[Paystack] ✅ Wallet updated successfully");
+    showToast("✅ Deposit successful! Wallet updated.", "success");
     
-    // 🔥 MOBILE DETECTION - Longer delay for mobile
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const redirectDelay = isMobile ? 4000 : 2000; // 4 seconds on mobile, 2 on desktop
-    
-    console.log(`📱 Device: ${isMobile ? 'Mobile' : 'Desktop'}, Redirecting in ${redirectDelay}ms...`);
-    
+    // Redirect to dashboard (real-time listeners will update automatically)
     setTimeout(() => {
-      console.log("🔄 Redirecting to dashboard with cache bust...");
-      // Use replace() instead of href to prevent back button caching
-      window.location.replace("dashboard.html?refresh=" + Date.now());
-    }, redirectDelay);
+      console.log("[Paystack] 🔄 Redirecting to dashboard...");
+      window.location.replace("dashboard.html");
+    }, 2000);
 
   } catch (error) {
-    console.error("❌ Callback error:", error);
-    console.error("Error details:", error.message);
+    console.error("[Paystack] ❌ Transaction error:", error);
+    console.error("[Paystack] Error details:", error.message);
     showToast("Payment received but update failed. Contact support with ref: " + response.reference, "error");
   }
 };
@@ -196,7 +209,8 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
     const amountInKobo = Math.round(numericAmount * 100);
     const reference = `AGW_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    console.log("💳 Initializing Paystack:", { 
+    console.log("[Paystack] Payment started");
+    console.log("[Paystack] Initializing:", { 
       amount: numericAmount, 
       email: customerEmail, 
       ref: reference,
@@ -224,13 +238,13 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
       currency: "GHS",
       ref: reference,
       callback: function(response) {
-        console.log("✅ Paystack callback fired!");
+        console.log("[Paystack] Callback fired with reference:", response.reference);
         
         if (typeof onSuccess === 'function') {
           try {
             onSuccess(response);
           } catch (err) {
-            console.warn("onSuccess callback error:", err);
+            console.warn("[Paystack] onSuccess callback error:", err);
           }
         }
         
