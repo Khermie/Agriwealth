@@ -4,8 +4,8 @@ import {
   serverTimestamp, 
   increment 
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { db, auth } from "./firebase-config.js?v=16";
-import { showToast, setLoading } from "./utils.js?v=16";
+import { db, auth } from "./firebase-config.js?v=21";
+import { showToast, setLoading } from "./utils.js?v=21";
 
 const PAYSTACK_PUBLIC_KEY = 'pk_test_db1821c1832ae2649f294e91c1a443ba1507ae2d';
 
@@ -124,11 +124,17 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
     console.log("✅ Firestore transaction successful!");
     showToast("✅ Wallet updated! Redirecting...", "success");
     
- setTimeout(() => {
-  console.log("🔄 Redirecting to dashboard with cache bust...");
-  // Add timestamp to force fresh load
-  window.location.href = "dashboard.html?t=" + Date.now();
-}, 2000);
+    // 🔥 MOBILE DETECTION - Longer delay for mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const redirectDelay = isMobile ? 4000 : 2000; // 4 seconds on mobile, 2 on desktop
+    
+    console.log(`📱 Device: ${isMobile ? 'Mobile' : 'Desktop'}, Redirecting in ${redirectDelay}ms...`);
+    
+    setTimeout(() => {
+      console.log("🔄 Redirecting to dashboard with cache bust...");
+      // Use replace() instead of href to prevent back button caching
+      window.location.replace("dashboard.html?refresh=" + Date.now());
+    }, redirectDelay);
 
   } catch (error) {
     console.error("❌ Callback error:", error);
