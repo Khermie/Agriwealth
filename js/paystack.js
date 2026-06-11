@@ -124,11 +124,11 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
     console.log("✅ Firestore transaction successful!");
     showToast("✅ Wallet updated! Redirecting...", "success");
     
-   console.log("⏳ Waiting 3 seconds before redirect to ensure data is saved...");
-setTimeout(() => {
-  console.log("🔄 Redirecting to dashboard...");
-  window.location.href = "dashboard.html";
-}, 3000); // Increased from 1500ms to 3000ms
+ setTimeout(() => {
+  console.log("🔄 Redirecting to dashboard with cache bust...");
+  // Add timestamp to force fresh load
+  window.location.href = "dashboard.html?t=" + Date.now();
+}, 2000);
 
   } catch (error) {
     console.error("❌ Callback error:", error);

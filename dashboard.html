@@ -348,215 +348,95 @@
     <div class="maturity-toast-msg" id="maturityToastMsg"></div>
   </div>
 
-  <script type="module">
-  import { auth, db } from './js/firebase-config.js?v=17';
-  import { doc, onSnapshot, collection, query, where, orderBy, limit, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { logoutUser } from './js/auth.js?v=17';
-  import { initRouter } from './js/router.js?v=17';
+ <script type="module">
+  import { auth, db } from './js/firebase-config.js?v=19';
+  import { doc, onSnapshot, collection, query, where, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { logoutUser } from './js/auth.js?v=19';
+  import { initRouter } from './js/router.js?v=19';
 
   window.logout = logoutUser;
   initRouter();
   document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
 
-  // Chart variables
-  let Chart = null;
-  let growthChart = null;
-  let returnChart = null;
-  let historyChart = null;
-  let activeChart = null;
-  let countdownInterval = null;
-
-  const chartColors = {
-    green: '#52b788',
-    greenAlpha: 'rgba(82,183,136,0.2)',
-    gold: '#e9b84a',
-    goldAlpha: 'rgba(233,184,74,0.2)',
-    cream: '#faf6ee',
-    pale: 'rgba(183,228,199,0.6)',
-    grid: 'rgba(255,255,255,0.06)',
-    gridBorder: 'rgba(255,255,255,0.08)'
-  };
-
-  // 🔥 FORCE FRESH DATA FETCH - Critical for mobile
-  async function fetchFreshUserData(uid) {
+  // 🔥 FORCE FRESH DATA FETCH
+  async function loadUserData(uid) {
     try {
-      console.log("[Dashboard] Fetching fresh user data for:", uid);
+      console.log("[Dashboard] Loading fresh data for user:", uid);
       
-      // Fetch user profile directly
       const userRef = doc(db, "users", uid);
       const userSnap = await getDoc(userRef);
       
       if (userSnap.exists()) {
         const data = userSnap.data();
-        console.log("[Dashboard] Fresh user data:", data);
+        console.log("[Dashboard] ✅ User data loaded:", data);
+        console.log("[Dashboard] 💰 Wallet balance:", data.walletBalance);
         
-        // Update UI immediately
+        // Update UI
+        document.getElementById('walletBal').textContent = `GHS ${(data.walletBalance || 0).toFixed(2)}`;
+        document.getElementById('portfolioVal').textContent = `GHS ${(data.totalInvestment || 0).toFixed(2)}`;
+        document.getElementById('activeCount').textContent = data.activeInvestmentCount || 0;
+        
+        // Also set up real-time listener for future updates
+        setupRealTimeListeners(uid);
+      } else {
+        console.error("[Dashboard] ❌ User document not found!");
+      }
+    } catch (error) {
+      console.error("[Dashboard] Error loading data:", error);
+    }
+  }
+
+  function setupRealTimeListeners(uid) {
+    console.log("[Dashboard] Setting up real-time listeners...");
+    
+    // User data listener
+    const userRef = doc(db, "users", uid);
+    onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log("[Dashboard] 🔄 Real-time update - Wallet:", data.walletBalance);
         document.getElementById('walletBal').textContent = `GHS ${(data.walletBalance || 0).toFixed(2)}`;
         document.getElementById('portfolioVal').textContent = `GHS ${(data.totalInvestment || 0).toFixed(2)}`;
         document.getElementById('activeCount').textContent = data.activeInvestmentCount || 0;
       }
-
-      // Fetch transactions
-      const txQuery = query(
-        collection(db, "transactions"), 
-        where("userId", "==", uid), 
-        orderBy("createdAt", "desc"), 
-        limit(10)
-      );
-      const txSnapshot = await getDocs(txQuery);
-      
-      const txContainer = document.getElementById('txContainer');
-      if (txContainer) {
-        if (txSnapshot.empty) {
-          txContainer.innerHTML = '<div class="empty-state">Recent deposits and investments will appear here.</div>';
-        } else {
-          txContainer.innerHTML = txSnapshot.docs.map(doc => {
-            const t = doc.data();
-            const isReturn = t.type === 'return';
-            const date = t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
-            return `<div class="activity-row"><div><strong>${isReturn ? 'Return' : t.type}</strong>${t.animalType ? `<br><small style="color:var(--amber)">${t.animalType}</small>` : ''}<br><small>${date}</small></div><div class="${isReturn ? 'positive' : t.type === 'deposit' ? 'positive' : 'warning'}">${isReturn ? '+' : t.type === 'investment' ? '-' : '+'}GHS ${t.amount}</div></div>`;
-          }).join('');
-        }
-      }
-
-      // Fetch investments
-      const invQuery = query(
-        collection(db, "investments"), 
-        where("userId", "==", uid)
-      );
-      const invSnapshot = await getDocs(invQuery);
-      const investments = invSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
-      console.log("[Dashboard] Fresh investments:", investments);
-      
-      // Update investments display
-      const invContainer = document.getElementById('investmentsContainer');
-      if (invContainer) {
-        if (investments.length === 0) {
-          invContainer.innerHTML = `<div class="empty-investments glass" style="grid-column: 1 / -1;">Active investments will appear here. <a href="investment.html">Start investing</a></div>`;
-        } else {
-          // Render investments (simplified version)
-          invContainer.innerHTML = investments.map(inv => `
-            <article class="glass inv-track-card">
-              <div class="inv-track-header">
-                <span class="inv-track-plan">${inv.animalType || 'Investment'}</span>
-                <span class="inv-track-status ${inv.status}">${inv.status}</span>
-              </div>
-              <div class="inv-track-body">
-                <div class="inv-track-row">
-                  <span class="inv-track-label">Invested</span>
-                  <span class="inv-track-value">GHS ${(inv.amount || 0).toFixed(2)}</span>
-                </div>
-                <div class="inv-track-row">
-                  <span class="inv-track-label">Expected Return</span>
-                  <span class="inv-track-value return-amount">GHS ${(inv.expectedReturn || inv.amount || 0).toFixed(2)}</span>
-                </div>
-              </div>
-            </article>
-          `).join('');
-        }
-      }
-
-    } catch (error) {
-      console.error("[Dashboard] Error fetching fresh data:", error);
-    }
-  }
-
-  // Initialize on auth
-  auth.onAuthStateChanged(u => {
-    if (!u) return;
-
-    console.log("[Dashboard] User authenticated:", u.uid);
-
-    // 🔥 CRITICAL: Fetch fresh data immediately on page load (fixes mobile issue)
-    fetchFreshUserData(u.uid);
-
-    // Then set up real-time listeners for live updates
-    const userRef = doc(db, "users", u.uid);
-    onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const d = docSnap.data();
-        console.log("[Dashboard] Real-time update:", d.walletBalance);
-        document.getElementById('walletBal').textContent = `GHS ${(d.walletBalance || 0).toFixed(2)}`;
-        document.getElementById('portfolioVal').textContent = `GHS ${(d.totalInvestment || 0).toFixed(2)}`;
-        document.getElementById('activeCount').textContent = d.activeInvestmentCount || 0;
-      }
     }, (error) => {
-      console.error("[Dashboard] Real-time listener error:", error);
-      // Fallback: fetch again if listener fails
-      fetchFreshUserData(u.uid);
+      console.error("[Dashboard] Listener error:", error);
     });
 
     // Transactions listener
     const txQuery = query(
       collection(db, "transactions"), 
-      where("userId", "==", u.uid), 
+      where("userId", "==", uid), 
       orderBy("createdAt", "desc"), 
       limit(10)
     );
 
     onSnapshot(txQuery, (snapshot) => {
+      console.log("[Dashboard] 📋 Transactions:", snapshot.size);
       const txContainer = document.getElementById('txContainer');
       if (!txContainer) return;
       
       if (snapshot.empty) {
         txContainer.innerHTML = '<div class="empty-state">Recent deposits and investments will appear here.</div>';
-        return;
+      } else {
+        txContainer.innerHTML = snapshot.docs.map(doc => {
+          const t = doc.data();
+          const isDeposit = t.type === 'deposit';
+          const date = t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
+          return `<div class="activity-row"><div><strong>${t.type}</strong>${t.animalType ? `<br><small style="color:var(--amber)">${t.animalType}</small>` : ''}<br><small>${date}</small></div><div class="${isDeposit ? 'positive' : 'warning'}">${isDeposit ? '+' : '-'}GHS ${t.amount}</div></div>`;
+        }).join('');
       }
-      
-      txContainer.innerHTML = snapshot.docs.map(doc => {
-        const t = doc.data();
-        const isReturn = t.type === 'return';
-        const date = t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
-        return `<div class="activity-row"><div><strong>${isReturn ? 'Return' : t.type}</strong>${t.animalType ? `<br><small style="color:var(--amber)">${t.animalType}</small>` : ''}<br><small>${date}</small></div><div class="${isReturn ? 'positive' : t.type === 'deposit' ? 'positive' : 'warning'}">${isReturn ? '+' : t.type === 'investment' ? '-' : '+'}GHS ${t.amount}</div></div>`;
-      }).join('');
     });
+  }
 
-    // Investments listener
-    const invQuery = query(
-      collection(db, "investments"), 
-      where("userId", "==", u.uid)
-    );
-
-    onSnapshot(invQuery, (snapshot) => {
-      const investments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      console.log("[Dashboard] Investments updated:", investments.length);
-      // You can add investment rendering here if needed
-    });
+  // Initialize on auth
+  auth.onAuthStateChanged(user => {
+    if (!user) return;
+    console.log("[Dashboard] User authenticated:", user.uid);
+    
+    // Load data immediately
+    loadUserData(user.uid);
   });
-
-  // Load charts
-  async function loadChartJS() {
-    if (Chart) return;
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
-    document.head.appendChild(script);
-    await new Promise((resolve, reject) => {
-      script.onload = resolve;
-      script.onerror = () => reject(new Error('Failed to load Chart.js'));
-    });
-    Chart = window.Chart;
-  }
-
-  function initCharts() {
-    loadChartJS().then(() => {
-      Chart.defaults.color = chartColors.pale;
-      Chart.defaults.borderColor = chartColors.gridBorder;
-      Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
-
-      const growthCtx = document.getElementById('growthChart');
-      if (growthCtx && !growthChart) {
-        growthChart = new Chart(growthCtx, {
-          type: 'line',
-          data: { labels: ['No data'], datasets: [{ label: 'Portfolio Value', data: [0], borderColor: chartColors.gold, backgroundColor: chartColors.goldAlpha, fill: true, tension: 0.4 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
-      }
-    });
-  }
-
-  // Initialize charts after a delay
-  setTimeout(initCharts, 1000);
 </script>
 </body>
 </html>
