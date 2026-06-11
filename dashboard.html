@@ -363,10 +363,15 @@
     orderBy, 
     limit 
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { logoutUser } from './js/auth.js?v=25';
+  import { signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { initRouter } from './js/router.js?v=25';
 
-  window.logout = logoutUser;
+  // Simple logout function
+  window.logout = async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+  };
+
   initRouter();
 
   console.log("[Dashboard] Script loaded");
