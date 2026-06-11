@@ -352,10 +352,20 @@
   </div>
 
 <script type="module">
-  import { auth, db } from './js/firebase-config.js?v=20';
-  import { doc, getDoc, onSnapshot, collection, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { logoutUser } from './js/auth.js?v=20';
-  import { initRouter } from './js/router.js?v=20';
+  import { auth, db } from './js/firebase-config.js?v=23';
+  import { 
+    doc, 
+    getDocFromServer,
+    getDoc,
+    onSnapshot, 
+    collection, 
+    query, 
+    where, 
+    orderBy, 
+    limit 
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { logoutUser } from './js/auth.js?v=23';
+  import { initRouter } from './js/router.js?v=23';
 
   window.logout = logoutUser;
   initRouter();
@@ -367,79 +377,79 @@
 
   let countdownInterval = null;
 
-  // 🔥 FORCE FRESH DATA FETCH
-  async function loadUserData(uid) {
+  // 🔥 FORCE SERVER FETCH - Bypasses offline cache!
+  async function fetchUserDataFromServer(uid, retries = 3) {
+    const userRef = doc(db, "users", uid);
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        console.log(`[Dashboard] 🌐 Server fetch attempt ${i + 1}/${retries}...`);
+        
+        // 🔥 THIS IS THE KEY - Forces network fetch, ignores cache
+        const userSnap = await getDocFromServer(userRef);
+        
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          console.log("[Dashboard] ✅ Fresh data from server:", data);
+          console.log("[Dashboard] 💰 Wallet:", data.walletBalance);
+          return data;
+        } else {
+          console.error("[Dashboard] ❌ User document not found on server!");
+          return null;
+        }
+      } catch (error) {
+        console.warn(`[Dashboard] Attempt ${i + 1} failed:`, error.message);
+        if (i < retries - 1) {
+          console.log("[Dashboard] Retrying in 1 second...");
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+    }
+    
+    // Fallback to cached data if all server fetches fail
+    console.warn("[Dashboard] ⚠️ All server fetches failed, using cached data");
     try {
-      // Wait on mobile for Firestore to sync
-      if (isMobile) {
-        console.log("[Dashboard] 📱 Mobile detected - waiting 1s for data sync...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-
-      console.log("[Dashboard] Fetching user data...");
-      const userRef = doc(db, "users", uid);
       const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        const data = userSnap.data();
-        console.log("[Dashboard] ✅ Data loaded:", data);
-        console.log("[Dashboard] 💰 Wallet:", data.walletBalance);
-
-        // Update wallet
-        const walletEl = document.getElementById('walletBal');
-        if (walletEl) {
-          walletEl.textContent = `GHS ${(data.walletBalance || 0).toFixed(2)}`;
-          console.log("[Dashboard] Updated wallet display");
-        }
-
-        // Update portfolio
-        const portfolioEl = document.getElementById('portfolioVal');
-        if (portfolioEl) {
-          portfolioEl.textContent = `GHS ${(data.totalInvestment || 0).toFixed(2)}`;
-        }
-
-        // Update active count
-        const activeEl = document.getElementById('activeCount');
-        if (activeEl) {
-          activeEl.textContent = data.activeInvestmentCount || 0;
-        }
-
-      } else {
-        console.error("[Dashboard] ❌ User document not found!");
-      }
-    } catch (error) {
-      console.error("[Dashboard] Error:", error);
+      return userSnap.exists() ? userSnap.data() : null;
+    } catch (e) {
+      console.error("[Dashboard] Even cached fetch failed:", e);
+      return null;
     }
   }
 
-  // 🔥 REAL-TIME LISTENERS
+  // Update UI with data
+  function updateUI(data) {
+    if (!data) return;
+    
+    const walletEl = document.getElementById('walletBal');
+    const portfolioEl = document.getElementById('portfolioVal');
+    const activeEl = document.getElementById('activeCount');
+    
+    if (walletEl) {
+      walletEl.textContent = `GHS ${(data.walletBalance || 0).toFixed(2)}`;
+      console.log("[Dashboard] 💰 Wallet displayed:", walletEl.textContent);
+    }
+    if (portfolioEl) {
+      portfolioEl.textContent = `GHS ${(data.totalInvestment || 0).toFixed(2)}`;
+    }
+    if (activeEl) {
+      activeEl.textContent = data.activeInvestmentCount || 0;
+    }
+  }
+
+  // Setup real-time listeners
   function setupRealTimeListeners(uid) {
     console.log("[Dashboard] Setting up real-time listeners...");
-
-    // User data listener
+    
     const userRef = doc(db, "users", uid);
     onSnapshot(userRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         console.log("[Dashboard] 🔄 Real-time update - Wallet:", data.walletBalance);
-        
-        const walletEl = document.getElementById('walletBal');
-        if (walletEl) {
-          walletEl.textContent = `GHS ${(data.walletBalance || 0).toFixed(2)}`;
-        }
-        
-        const portfolioEl = document.getElementById('portfolioVal');
-        if (portfolioEl) {
-          portfolioEl.textContent = `GHS ${(data.totalInvestment || 0).toFixed(2)}`;
-        }
-        
-        const activeEl = document.getElementById('activeCount');
-        if (activeEl) {
-          activeEl.textContent = data.activeInvestmentCount || 0;
-        }
+        updateUI(data);
       }
     }, (error) => {
-      console.error("[Dashboard] User listener error:", error);
+      console.error("[Dashboard] Listener error:", error);
     });
 
     // Transactions listener
@@ -451,7 +461,6 @@
     );
 
     onSnapshot(txQuery, (snapshot) => {
-      console.log("[Dashboard] 📋 Transactions:", snapshot.size);
       const txContainer = document.getElementById('txContainer');
       if (!txContainer) return;
 
@@ -465,8 +474,6 @@
           return `<div class="activity-row"><div><strong>${t.type}</strong>${t.animalType ? `<br><small style="color:var(--amber)">${t.animalType}</small>` : ''}<br><small>${date}</small></div><div class="${isDeposit ? 'positive' : 'warning'}">${isDeposit ? '+' : '-'}GHS ${t.amount}</div></div>`;
         }).join('');
       }
-    }, (error) => {
-      console.error("[Dashboard] Transactions listener error:", error);
     });
 
     // Investments listener
@@ -476,12 +483,9 @@
     );
 
     onSnapshot(invQuery, (snapshot) => {
-      console.log("[Dashboard] 💼 Investments:", snapshot.size);
       const investments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       renderInvestments(investments);
       startCountdowns();
-    }, (error) => {
-      console.error("[Dashboard] Investments listener error:", error);
     });
   }
 
@@ -619,7 +623,7 @@
     }, 1000);
   }
 
-  // Initialize on auth
+  // Initialize
   auth.onAuthStateChanged(async (user) => {
     if (!user) {
       console.log("[Dashboard] No user");
@@ -627,11 +631,23 @@
     }
 
     console.log("[Dashboard] User:", user.uid);
+    
+    // 🔥 Wait a moment on mobile for Firestore to sync
+    if (isMobile) {
+      console.log("[Dashboard] 📱 Mobile - waiting 1.5s for sync...");
+      await new Promise(r => setTimeout(r, 1500));
+    }
 
-    // Load data immediately
-    await loadUserData(user.uid);
+    // 🔥 Fetch fresh data from server (bypasses cache!)
+    const data = await fetchUserDataFromServer(user.uid);
+    
+    if (data) {
+      updateUI(data);
+    } else {
+      console.error("[Dashboard] ❌ Could not load user data!");
+    }
 
-    // Setup real-time listeners
+    // Setup real-time listeners for future updates
     setupRealTimeListeners(user.uid);
   });
 </script>
