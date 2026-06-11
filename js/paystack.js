@@ -3,10 +3,11 @@ import {
   doc, 
   serverTimestamp, 
   increment,
-  getDoc
+  getDoc,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { db, auth } from "./firebase-config.js?v=23";
-import { showToast, setLoading } from "./utils.js?v=23";
+import { db, auth } from "./firebase-config.js?v=24";
+import { showToast, setLoading } from "./utils.js?v=24";
 
 const PAYSTACK_PUBLIC_KEY = 'pk_test_db1821c1832ae2649f294e91c1a443ba1507ae2d';
 
@@ -24,28 +25,27 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
     const txRef = doc(db, "transactions", `tx_${response.reference}`);
     const userRef = doc(db, "users", userId);
 
-    console.log("[Paystack] Checking for duplicate transaction...");
+    // Check for duplicate transaction
+    console.log("[Paystack] Checking for duplicate...");
     const existingTx = await getDoc(txRef);
-    
     if (existingTx.exists()) {
-      console.warn("[Paystack] ⚠️ Duplicate detected - transaction already exists:", response.reference);
-      showToast("Payment already processed. Redirecting to dashboard...", "warning");
+      console.warn("[Paystack] Duplicate transaction detected");
+      showToast("Payment already processed. Redirecting...", "warning");
       setTimeout(() => {
         window.location.replace("dashboard.html");
       }, 2000);
       return;
     }
 
-    console.log("[Paystack] No duplicate found - proceeding with wallet update...");
+    console.log("[Paystack] Starting wallet update...");
 
+    // 🔥 SIMPLIFIED: Use setDoc with merge instead of complex transaction
     await runTransaction(db, async (transaction) => {
-      console.log("[Paystack] 🔥 Starting Firestore transaction...");
-      
+      // Get user doc
       const userDoc = await transaction.get(userRef);
       
       if (!userDoc.exists()) {
-        console.log("[Paystack] ⚠️ User profile not found - creating it now...");
-        
+        // Create user profile if it doesn't exist
         const user = auth.currentUser;
         const email = user?.email || "unknown";
         const displayName = user?.displayName || "User";
@@ -53,7 +53,8 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
         const firstName = nameParts[0] || "User";
         const lastName = nameParts.slice(1).join(" ") || "";
 
-        transaction.set(userRef, {
+        // Create user document
+        await setDoc(userRef, {
           firstName: firstName,
           lastName: lastName,
           email: email,
@@ -70,8 +71,10 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
           lastLogin: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
+        console.log("[Paystack] User profile created");
       }
 
+      // Create transaction record
       transaction.set(txRef, {
         userId: userId,
         type: paymentData.paymentType || "deposit",
@@ -85,31 +88,9 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
         createdAt: serverTimestamp()
       });
 
+      // Update wallet balance
       if (paymentData.paymentType === "investment") {
-        const invRef = doc(db, "investments", `inv_${response.reference}`);
-        const maturityDate = new Date(Date.now() + ((paymentData.durationHours || 0) * 3600000));
-        
-        const expectedReturn = paymentData.expectedReturn || paymentData.amount;
-        const profit = expectedReturn - paymentData.amount;
-        const roiPercent = paymentData.amount > 0 ? (profit / paymentData.amount) * 100 : 0;
-
-        transaction.set(invRef, {
-          userId: userId,
-          animalType: paymentData.animalType,
-          amount: paymentData.amount,
-          expectedReturn: expectedReturn,
-          profit: profit,
-          roiPercent: roiPercent,
-          durationHours: paymentData.durationHours || 0,
-          status: "active",
-          paymentMethod: paymentData.method || "paystack",
-          paymentReference: response.reference,
-          payoutProcessed: false,
-          startDate: serverTimestamp(),
-          maturityDate: maturityDate,
-          createdAt: serverTimestamp()
-        });
-
+        // For investment: deduct from wallet
         transaction.update(userRef, {
           totalInvestment: increment(paymentData.amount),
           activeInvestmentCount: increment(1),
@@ -118,6 +99,7 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
           updatedAt: serverTimestamp()
         });
       } else {
+        // For deposit: add to wallet
         transaction.update(userRef, {
           walletBalance: increment(paymentData.amount),
           totalDeposits: increment(paymentData.amount),
@@ -127,24 +109,30 @@ window.handlePaystackCallback = async function(response, paymentData, userId) {
       }
     });
 
-    console.log("[Paystack] ✅✅✅ TRANSACTION COMMITTED SUCCESSFULLY");
+    console.log("[Paystack] ✅ Transaction successful!");
     showToast("✅ Deposit successful! Wallet updated.", "success");
     
-    // 🔥 MOBILE DETECTION - Longer delay for mobile
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const redirectDelay = isMobile ? 4000 : 2000;
-    
-    console.log(`📱 Device: ${isMobile ? 'Mobile' : 'Desktop'}, Redirecting in ${redirectDelay}ms...`);
-    
+    // Redirect to dashboard
     setTimeout(() => {
-      console.log("[Paystack] 🔄 Redirecting to dashboard...");
       window.location.replace("dashboard.html?refresh=" + Date.now());
-    }, redirectDelay);
+    }, 2000);
 
   } catch (error) {
-    console.error("[Paystack] ❌❌❌ TRANSACTION FAILED");
-    console.error("[Paystack] ❌ Transaction error:", error);
-    showToast("Payment received but update failed. Contact support with ref: " + response.reference, "error");
+    console.error("[Paystack] ❌ Transaction failed:", error);
+    console.error("[Paystack] Error code:", error.code);
+    console.error("[Paystack] Error message:", error.message);
+    
+    // More specific error messages
+    let errorMsg = "Payment received but update failed. ";
+    if (error.code === "permission-denied") {
+      errorMsg += "Permission error. Contact support.";
+    } else if (error.code === "already-exists") {
+      errorMsg += "Transaction already exists.";
+    } else {
+      errorMsg += "Contact support with ref: " + response.reference;
+    }
+    
+    showToast(errorMsg, "error");
   }
 };
 
@@ -199,7 +187,7 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
     const amountInKobo = Math.round(numericAmount * 100);
     const reference = `AGW_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    console.log("[Paystack] Payment started");
+    console.log("[Paystack] Initializing:", { amount: numericAmount, ref: reference });
 
     window.currentPaymentData = {
       amount: numericAmount,
@@ -220,13 +208,13 @@ export async function openPaystack(amount, email, onSuccess, options = {}) {
       currency: "GHS",
       ref: reference,
       callback: function(response) {
-        console.log("[Paystack] Callback fired with reference:", response.reference);
+        console.log("[Paystack] Callback fired:", response.reference);
         
         if (typeof onSuccess === 'function') {
           try {
             onSuccess(response);
           } catch (err) {
-            console.warn("[Paystack] onSuccess callback error:", err);
+            console.warn("[Paystack] onSuccess error:", err);
           }
         }
         
