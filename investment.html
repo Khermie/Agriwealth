@@ -256,308 +256,262 @@
   </div>
 
   <script type="module">
-    import { auth } from './js/firebase-config.js';
-    import { openPaystack } from './js/paystack.js';
-    import { showToast } from './js/utils.js';
-    import { initRouter } from './js/router.js';
-    initRouter();
-    document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
+  import { auth, db } from './js/firebase-config.js?v=32';
+  import { 
+    doc, 
+    getDocFromServer,
+    runTransaction,
+    serverTimestamp,
+    increment
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { showToast } from './js/utils.js?v=32';
+  import { initRouter } from './js/router.js?v=32';
+  
+  initRouter();
+  document.querySelector('.menu-btn')?.addEventListener('click', () => document.querySelector('.nav-links')?.classList.toggle('active'));
+
+  const assetImages = {
+    'Poultry': 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=700&q=75',
+    'Catfish': 'https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=700&q=75',
+    'Pig': 'https://images.unsplash.com/photo-1616109259043-fd30a7663a5d?auto=format&fit=crop&w=700&q=75',
+    'Goat': 'https://images.unsplash.com/photo-1524024973431-2ad916746881?auto=format&fit=crop&w=700&q=75',
+    'Calf': 'https://images.unsplash.com/photo-1604860428762-f55cea62b7a0?auto=format&fit=crop&w=700&q=75',
+    'Snail': 'https://images.unsplash.com/photo-1569534893984-48aec815679b?auto=format&fit=crop&w=700&q=75',
+    'Dairy Cow': 'https://images.unsplash.com/photo-1593768697824-f31b967e6c55?auto=format&fit=crop&w=700&q=75',
+    'Bull': 'https://images.unsplash.com/photo-1506809494389-a68c51c9e6a1?auto=format&fit=crop&w=700&q=75',
+    'Buffalo': 'https://images.unsplash.com/photo-1603966474815-85d21585ffb9?auto=format&fit=crop&w=700&q=75',
+    'Crop Investment': 'https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=700&q=75'
+  };
+
+  const fallbackImg = 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=700&q=75';
+
+  const assets = [
+    { key: 'Poultry', name: 'Poultry', investment: 100, returnAmount: 580, duration: '1 day 3 hours', durationHours: 27, roi: '480%', risk: 'Low', status: 'Filling fast', progress: 74, img: assetImages['Poultry'] },
+    { key: 'Catfish', name: 'Catfish', investment: 150, returnAmount: 750, duration: '1 day 8 hours', durationHours: 32, roi: '400%', risk: 'Med', status: 'Premium', progress: 63, img: assetImages['Catfish'] },
+    { key: 'Pig', name: 'Pig', investment: 200, returnAmount: 990, duration: '2 days', durationHours: 48, roi: '395%', risk: 'Med', status: 'Open', progress: 51, img: assetImages['Pig'] },
+    { key: 'Goat', name: 'Goat', investment: 300, returnAmount: 1400, duration: '2 days 3 hours', durationHours: 51, roi: '367%', risk: 'Med', status: 'Open', progress: 42, img: assetImages['Goat'] },
+    { key: 'Calf', name: 'Calf', investment: 400, returnAmount: 1900, duration: '2 days 8 hours', durationHours: 56, roi: '375%', risk: 'Low', status: 'High demand', progress: 68, img: assetImages['Calf'] },
+    { key: 'Snail', name: 'Snail', investment: 450, returnAmount: 2200, duration: '3 days 5 hours', durationHours: 77, roi: '389%', risk: 'Low', status: 'New cycle', progress: 35, img: assetImages['Snail'] },
+    { key: 'Dairy Cow', name: 'Dairy Cow', investment: 600, returnAmount: 4000, duration: '4 days 8 hours', durationHours: 104, roi: '567%', risk: 'Low', status: 'High demand', progress: 58, img: assetImages['Dairy Cow'] },
+    { key: 'Bull', name: 'Bull', investment: 800, returnAmount: 6200, duration: '5 days 5 hours', durationHours: 125, roi: '675%', risk: 'Med', status: 'Premium', progress: 60, img: assetImages['Bull'] },
+    { key: 'Buffalo', name: 'Buffalo', investment: 1000, returnAmount: 10000, duration: '6 days 2 hours', durationHours: 146, roi: '900%', risk: 'Med', status: 'Premium', progress: 65, img: assetImages['Buffalo'] },
+    { key: 'Crop Investment', name: 'Crop Investment', investment: 1500, returnAmount: 15000, duration: '7 days', durationHours: 168, roi: '900%', risk: 'Low', status: 'Seasonal', progress: 58, img: assetImages['Crop Investment'] }
+  ];
+
+  document.getElementById('investGrid').innerHTML = assets.map((a, i) => {
+    const img = a.img || fallbackImg;
+    const alt = `${a.name} investment`;
     
-    // ✅ CORRECT Unsplash CDN image URLs
-    const assetImages = {
-      'Poultry': 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=700&q=75',
-      'Catfish': 'https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=700&q=75',
-      'Pig': 'https://images.unsplash.com/photo-1616109259043-fd30a7663a5d?auto=format&fit=crop&w=700&q=75',
-      'Goat': 'https://images.unsplash.com/photo-1524024973431-2ad916746881?auto=format&fit=crop&w=700&q=75',
-      'Calf': 'https://images.unsplash.com/photo-1604860428762-f55cea62b7a0?auto=format&fit=crop&w=700&q=75',
-      'Snail': 'https://images.unsplash.com/photo-1569534893984-48aec815679b?auto=format&fit=crop&w=700&q=75',
-      'Dairy Cow': 'https://images.unsplash.com/photo-1593768697824-f31b967e6c55?auto=format&fit=crop&w=700&q=75',
-      'Bull': 'https://images.unsplash.com/photo-1506809494389-a68c51c9e6a1?auto=format&fit=crop&w=700&q=75',
-      'Buffalo': 'https://images.unsplash.com/photo-1603966474815-85d21585ffb9?auto=format&fit=crop&w=700&q=75',
-      'Crop Investment': 'https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=700&q=75'
-    };
-
-    const fallbackImg = 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=700&q=75';
-
-    // ✅ Investment plans with durationHours for precise maturity calculation
-    const assets = [
-      {
-        key: 'Poultry',
-        name: 'Poultry',
-        investment: 100,
-        returnAmount: 580,
-        duration: '1 day 3 hours',
-        durationHours: 27,
-        roi: '480%',
-        risk: 'Low',
-        status: 'Filling fast',
-        progress: 74,
-        img: assetImages['Poultry']
-      },
-      {
-        key: 'Catfish',
-        name: 'Catfish',
-        investment: 150,
-        returnAmount: 750,
-        duration: '1 day 8 hours',
-        durationHours: 32,
-        roi: '400%',
-        risk: 'Med',
-        status: 'Premium',
-        progress: 63,
-        img: assetImages['Catfish']
-      },
-      {
-        key: 'Pig',
-        name: 'Pig',
-        investment: 200,
-        returnAmount: 990,
-        duration: '2 days',
-        durationHours: 48,
-        roi: '395%',
-        risk: 'Med',
-        status: 'Open',
-        progress: 51,
-        img: assetImages['Pig']
-      },
-      {
-        key: 'Goat',
-        name: 'Goat',
-        investment: 300,
-        returnAmount: 1400,
-        duration: '2 days 3 hours',
-        durationHours: 51,
-        roi: '367%',
-        risk: 'Med',
-        status: 'Open',
-        progress: 42,
-        img: assetImages['Goat']
-      },
-      {
-        key: 'Calf',
-        name: 'Calf',
-        investment: 400,
-        returnAmount: 1900,
-        duration: '2 days 8 hours',
-        durationHours: 56,
-        roi: '375%',
-        risk: 'Low',
-        status: 'High demand',
-        progress: 68,
-        img: assetImages['Calf']
-      },
-      {
-        key: 'Snail',
-        name: 'Snail',
-        investment: 450,
-        returnAmount: 2200,
-        duration: '3 days 5 hours',
-        durationHours: 77,
-        roi: '389%',
-        risk: 'Low',
-        status: 'New cycle',
-        progress: 35,
-        img: assetImages['Snail']
-      },
-      {
-        key: 'Dairy Cow',
-        name: 'Dairy Cow',
-        investment: 600,
-        returnAmount: 4000,
-        duration: '4 days 8 hours',
-        durationHours: 104,
-        roi: '567%',
-        risk: 'Low',
-        status: 'High demand',
-        progress: 58,
-        img: assetImages['Dairy Cow']
-      },
-      {
-        key: 'Bull',
-        name: 'Bull',
-        investment: 800,
-        returnAmount: 6200,
-        duration: '5 days 5 hours',
-        durationHours: 125,
-        roi: '675%',
-        risk: 'Med',
-        status: 'Premium',
-        progress: 60,
-        img: assetImages['Bull']
-      },
-      {
-        key: 'Buffalo',
-        name: 'Buffalo',
-        investment: 1000,
-        returnAmount: 10000,
-        duration: '6 days 2 hours',
-        durationHours: 146,
-        roi: '900%',
-        risk: 'Med',
-        status: 'Premium',
-        progress: 65,
-        img: assetImages['Buffalo']
-      },
-      {
-        key: 'Crop Investment',
-        name: 'Crop Investment',
-        investment: 1500,
-        returnAmount: 15000,
-        duration: '7 days',
-        durationHours: 168,
-        roi: '900%',
-        risk: 'Low',
-        status: 'Seasonal',
-        progress: 58,
-        img: assetImages['Crop Investment']
-      }
-    ];
-
-    document.getElementById('investGrid').innerHTML = assets.map((a, i) => {
-      const img = a.img || fallbackImg;
-      const alt = `${a.name} investment`;
-      
-      return `<article class="glass invest-card anim anim-delay-${Math.min(i, 5)}">
-        <div class="invest-media">
-          <img
-            loading="lazy"
-            decoding="async"
-            src="${img}"
-            alt="${alt}"
-            onerror="this.onerror=null; this.src='${fallbackImg}';"
-          />
-          <div class="roi-badge">${a.roi} ROI</div>
-          <div class="availability">${a.status}</div>
-          <div class="invest-media-overlay" aria-hidden="true"></div>
+    return `<article class="glass invest-card anim anim-delay-${Math.min(i, 5)}">
+      <div class="invest-media">
+        <img loading="lazy" decoding="async" src="${img}" alt="${alt}" onerror="this.onerror=null; this.src='${fallbackImg}';" />
+        <div class="roi-badge">${a.roi} ROI</div>
+        <div class="availability">${a.status}</div>
+        <div class="invest-media-overlay" aria-hidden="true"></div>
+      </div>
+      <div class="invest-body">
+        <div class="invest-title-row">
+          <h3>${a.name}</h3>
+          <span style="color: var(--pale-green); font-size: 0.9rem;">${a.risk} risk</span>
         </div>
-        <div class="invest-body">
-          <div class="invest-title-row">
-            <h3>${a.name}</h3>
-            <span style="color: var(--pale-green); font-size: 0.9rem;">${a.risk} risk</span>
-          </div>
-          
-          <div class="investment-details">
-            <div class="detail-item">
-              <span class="detail-label">Investment</span>
-              <span class="detail-value">GHS ${a.investment.toLocaleString()}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Return</span>
-              <span class="detail-value return">GHS ${a.returnAmount.toLocaleString()}</span>
-            </div>
-            <div class="detail-item" style="grid-column: 1 / -1;">
-              <span class="detail-label">Duration</span>
-              <span class="detail-value">${a.duration}</span>
-            </div>
-          </div>
-          
-          <div class="progress">
-            <div class="progress-fill" style="width:${a.progress}%"></div>
-          </div>
-          <div class="invest-meta">
-            <span>${a.progress}% allocated</span>
-            <span>Min GHS ${a.investment}</span>
-          </div>
-          
-          <button class="btn" style="width:100%;" onclick="window.openModal('${a.name}', ${a.investment}, ${a.returnAmount}, ${a.durationHours})">
-            Invest Now - GHS ${a.investment}
-          </button>
+        <div class="investment-details">
+          <div class="detail-item"><span class="detail-label">Investment</span><span class="detail-value">GHS ${a.investment.toLocaleString()}</span></div>
+          <div class="detail-item"><span class="detail-label">Return</span><span class="detail-value return">GHS ${a.returnAmount.toLocaleString()}</span></div>
+          <div class="detail-item" style="grid-column: 1 / -1;"><span class="detail-label">Duration</span><span class="detail-value">${a.duration}</span></div>
         </div>
-      </article>`;
-    }).join('');
+        <div class="progress"><div class="progress-fill" style="width:${a.progress}%"></div></div>
+        <div class="invest-meta"><span>${a.progress}% allocated</span><span>Min GHS ${a.investment}</span></div>
+        <button class="btn" style="width:100%;" onclick="window.openModal('${a.name}', ${a.investment}, ${a.returnAmount}, ${a.durationHours})">Invest Now - GHS ${a.investment}</button>
+      </div>
+    </article>`;
+  }).join('');
 
-    // Current modal asset data
-    let currentModalData = { name: '', minInvestment: 0, baseReturn: 0, durationHours: 0 };
+  let currentModalData = { name: '', minInvestment: 0, baseReturn: 0, durationHours: 0 };
 
-    // ✅ Dynamic ROI calculation
-    function updateRoiPreview() {
-      const amt = parseFloat(document.getElementById('investAmount').value);
-      const preview = document.getElementById('roiPreview');
+  function updateRoiPreview() {
+    const amt = parseFloat(document.getElementById('investAmount').value);
+    const preview = document.getElementById('roiPreview');
 
-      if (!amt || amt < currentModalData.minInvestment) {
-        preview.style.display = 'none';
-        return;
-      }
-
-      const calculatedReturn = (amt / currentModalData.minInvestment) * currentModalData.baseReturn;
-      const profit = calculatedReturn - amt;
-      const roiPercent = ((profit / amt) * 100);
-      const maturityDate = new Date(Date.now() + currentModalData.durationHours * 3600000);
-
-      document.getElementById('previewReturn').textContent = `GHS ${calculatedReturn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      document.getElementById('previewProfit').textContent = `GHS ${profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      document.getElementById('previewRoi').textContent = `${roiPercent.toFixed(1)}%`;
-      document.getElementById('previewMaturity').textContent = maturityDate.toLocaleString(undefined, {
-        month: 'short', day: 'numeric', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
-      document.getElementById('previewPayout').textContent = `GHS ${calculatedReturn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
-      preview.style.display = 'grid';
+    if (!amt || amt < currentModalData.minInvestment) {
+      preview.style.display = 'none';
+      return;
     }
 
-    // Listen for real-time input changes
-    document.getElementById('investAmount').addEventListener('input', updateRoiPreview);
+    const calculatedReturn = (amt / currentModalData.minInvestment) * currentModalData.baseReturn;
+    const profit = calculatedReturn - amt;
+    const roiPercent = ((profit / amt) * 100);
+    const maturityDate = new Date(Date.now() + currentModalData.durationHours * 3600000);
 
-    window.openModal = (name, minAmount, baseReturn, durationHours) => {
-      currentModalData = { name, minInvestment: minAmount, baseReturn, durationHours };
-      document.getElementById('modalAsset').textContent = name;
-      document.getElementById('investAmount').value = minAmount;
-      document.getElementById('investAmount').min = minAmount;
-      document.getElementById('investAmount').placeholder = `Amount (min GHS ${minAmount})`;
-      document.getElementById('investModal').classList.add('open');
-      // Show initial preview at minimum amount
-      updateRoiPreview();
-    };
+    document.getElementById('previewReturn').textContent = `GHS ${calculatedReturn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('previewProfit').textContent = `GHS ${profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('previewRoi').textContent = `${roiPercent.toFixed(1)}%`;
+    document.getElementById('previewMaturity').textContent = maturityDate.toLocaleString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    document.getElementById('previewPayout').textContent = `GHS ${calculatedReturn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+    preview.style.display = 'grid';
+  }
+
+  document.getElementById('investAmount').addEventListener('input', updateRoiPreview);
+
+  window.openModal = (name, minAmount, baseReturn, durationHours) => {
+    currentModalData = { name, minInvestment: minAmount, baseReturn, durationHours };
+    document.getElementById('modalAsset').textContent = name;
+    document.getElementById('investAmount').value = minAmount;
+    document.getElementById('investAmount').min = minAmount;
+    document.getElementById('investAmount').placeholder = `Amount (min GHS ${minAmount})`;
+    document.getElementById('investModal').classList.add('open');
+    updateRoiPreview();
+  };
+  
+  // 🔥 FIXED: Deduct from wallet instead of opening Paystack
+  window.confirmInv = async () => {
+    const amt = parseFloat(document.getElementById('investAmount').value);
+    const type = document.getElementById('modalAsset').textContent;
+    const minAmount = currentModalData.minInvestment;
+    const baseReturn = currentModalData.baseReturn;
+    const durationHours = currentModalData.durationHours;
     
-    window.confirmInv = async () => {
-      const amt = parseFloat(document.getElementById('investAmount').value);
-      const type = document.getElementById('modalAsset').textContent;
-      const minAmount = currentModalData.minInvestment;
-      const baseReturn = currentModalData.baseReturn;
-      const durationHours = currentModalData.durationHours;
+    if (!amt || amt < minAmount) {
+      return showToast(`Minimum investment is GHS ${minAmount}`, 'warning');
+    }
+    
+    if (!auth.currentUser) {
+      showToast('Please login to invest', 'warning');
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const confirmBtn = document.querySelector('#investModal .btn');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Processing...";
+
+    try {
+      // 🔥 Step 1: Fetch fresh wallet balance from server
+      console.log("[Investment] Fetching wallet balance...");
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const userSnap = await getDocFromServer(userRef);
       
-      if (!amt || amt < minAmount) {
-        return showToast(`Minimum investment is GHS ${minAmount}`, 'warning');
-      }
-      
-      if (!auth.currentUser) {
-        showToast('Please login to invest', 'warning');
-        window.location.href = 'login.html';
+      if (!userSnap.exists()) {
+        showToast("User profile not found. Please deposit first.", "error");
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = "Confirm Investment";
         return;
       }
 
-      // ✅ Dynamic return calculation
+      const userData = userSnap.data();
+      const currentBalance = userData.walletBalance || 0;
+      
+      console.log("[Investment] Current balance:", currentBalance, "Investment amount:", amt);
+
+      // 🔥 Step 2: Check if user has sufficient funds
+      if (currentBalance < amt) {
+        const shortfall = amt - currentBalance;
+        console.warn("[Investment] ❌ Insufficient funds! Shortfall:", shortfall);
+        
+        showToast(
+          `Insufficient funds! You need GHS ${shortfall.toFixed(2)} more. Redirecting to deposit...`,
+          "warning"
+        );
+        
+        setTimeout(() => {
+          window.location.href = "payment.html";
+        }, 2500);
+        
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = "Confirm Investment";
+        return;
+      }
+
+      // 🔥 Step 3: Calculate returns
       const calculatedReturn = (amt / minAmount) * baseReturn;
       const profit = calculatedReturn - amt;
       const roiPercent = ((profit / amt) * 100);
       const maturityDate = new Date(Date.now() + durationHours * 3600000);
-      
-      try {
-        await openPaystack(amt, auth.currentUser.email, () => {
-          showToast('Investment successful! Redirecting...', 'success');
-          document.getElementById('investModal').classList.remove('open');
-          setTimeout(() => {
-            window.location.href = 'dashboard.html';
-          }, 1500);
-        }, { 
-          paymentType: 'investment', 
-          animalType: type, 
+
+      console.log("[Investment] ✅ Sufficient funds - proceeding with investment...");
+
+      // 🔥 Step 4: Use transaction to atomically deduct + create investment
+      const uid = auth.currentUser.uid;
+      const invRef = doc(db, "investments", `inv_${Date.now()}_${uid}`);
+      const txRef = doc(db, "transactions", `tx_inv_${Date.now()}_${uid}`);
+
+      await runTransaction(db, async (transaction) => {
+        const freshUserSnap = await transaction.get(userRef);
+        const freshBalance = freshUserSnap.data().walletBalance || 0;
+        
+        if (freshBalance < amt) {
+          throw new Error(`Insufficient funds. Current balance: GHS ${freshBalance.toFixed(2)}`);
+        }
+
+        // 1. Deduct from wallet
+        transaction.update(userRef, {
+          walletBalance: increment(-amt),
+          totalInvestment: increment(amt),
+          activeInvestmentCount: increment(1),
+          lastInvestmentAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+
+        // 2. Create investment record
+        transaction.set(invRef, {
+          userId: uid,
+          animalType: type,
           amount: amt,
-          method: 'paystack',
-          durationHours: durationHours,
-          minimumInvestment: minAmount,
-          baseReturn: baseReturn,
           expectedReturn: calculatedReturn,
           profit: profit,
           roiPercent: roiPercent,
-          maturityDate: maturityDate.toISOString()
+          durationHours: durationHours,
+          status: "active",
+          paymentMethod: "wallet",
+          payoutProcessed: false,
+          startDate: serverTimestamp(),
+          maturityDate: maturityDate,
+          createdAt: serverTimestamp()
         });
-      } catch (err) {
-        showToast('Payment failed: ' + err.message, 'error');
+
+        // 3. Create transaction record
+        transaction.set(txRef, {
+          userId: uid,
+          type: "investment",
+          amount: amt,
+          paymentMethod: "wallet",
+          provider: "internal",
+          status: "success",
+          reference: invRef.id,
+          animalType: type,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      console.log("[Investment] ✅✅✅ INVESTMENT SUCCESSFUL");
+      showToast(`✅ Investment successful! GHS ${amt} allocated to ${type}`, "success");
+      
+      document.getElementById('investModal').classList.remove('open');
+      
+      setTimeout(() => {
+        window.location.href = 'dashboard.html';
+      }, 1500);
+
+    } catch (error) {
+      console.error("[Investment] ❌ Error:", error);
+      
+      if (error.message.includes("Insufficient funds")) {
+        showToast(error.message, "warning");
+        setTimeout(() => {
+          window.location.href = "payment.html";
+        }, 2500);
+      } else {
+        showToast("Investment failed: " + error.message, "error");
       }
-    };
-  </script>
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Confirm Investment";
+    }
+  };
+</script>
 </body>
 </html>
 
