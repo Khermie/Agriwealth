@@ -352,11 +352,10 @@
   </div>
 
 <script type="module">
-  import { auth, db } from './js/firebase-config.js?v=28';
+  import { auth, db } from './js/firebase-config.js?v=25';
   import { 
     doc, 
     getDoc,
-    getDocFromServer,
     onSnapshot, 
     collection, 
     query, 
@@ -364,57 +363,55 @@
     orderBy, 
     limit 
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { initRouter } from './js/router.js?v=28';
+  import { logoutUser } from './js/auth.js?v=25';
+  import { initRouter } from './js/router.js?v=25';
 
-  window.logout = async () => {
-    await signOut(auth);
-    window.location.href = "login.html";
-  };
-
+  window.logout = logoutUser;
   initRouter();
+
   console.log("[Dashboard] Script loaded");
 
   let countdownInterval = null;
 
-  // 🔥 FORCE SERVER FETCH
+  // 🔥 FORCE FRESH DATA FETCH WITH RETRY
   async function loadUserData(uid) {
     console.log("[Dashboard] Loading user data for:", uid);
+    
     const userRef = doc(db, "users", uid);
     
+    // Try up to 3 times
     for (let i = 0; i < 3; i++) {
       try {
-        console.log(`[Dashboard] Server fetch attempt ${i + 1}/3...`);
-        const userSnap = await getDocFromServer(userRef);
+        console.log(`[Dashboard] Fetch attempt ${i + 1}/3...`);
+        const userSnap = await getDoc(userRef);
         
         if (userSnap.exists()) {
           const data = userSnap.data();
-          console.log("[Dashboard] ✅ Fresh data:", data);
+          console.log("[Dashboard] ✅ Data loaded:", data);
           console.log("[Dashboard] 💰 Wallet:", data.walletBalance);
           return data;
         } else {
-          console.warn("[Dashboard] User not found, retrying...");
+          console.warn("[Dashboard] User document not found, retrying...");
           await new Promise(r => setTimeout(r, 1000));
         }
       } catch (error) {
-        console.warn(`[Dashboard] Attempt ${i + 1} failed:`, error.message);
+        console.warn(`[Dashboard] Fetch attempt ${i + 1} failed:`, error.message);
         await new Promise(r => setTimeout(r, 1000));
       }
     }
     
-    console.warn("[Dashboard] Falling back to cached data...");
-    try {
-      const userSnap = await getDoc(userRef);
-      return userSnap.exists() ? userSnap.data() : null;
-    } catch (e) {
-      return null;
-    }
+    console.error("[Dashboard] ❌ Failed to load user data after 3 attempts");
+    return null;
   }
 
+  // Update UI with data
   function updateUI(data) {
-    if (!data) return;
+    if (!data) {
+      console.warn("[Dashboard] No data to update UI");
+      return;
+    }
     
-    console.log("[Dashboard] Updating UI...");
+    console.log("[Dashboard] Updating UI with data:", data);
     
     const walletEl = document.getElementById('walletBal');
     const portfolioEl = document.getElementById('portfolioVal');
@@ -432,152 +429,20 @@
     }
   }
 
-  // 🔥 RENDER INVESTMENTS WITH COUNTDOWN
-  function renderInvestments(investments) {
-    const container = document.getElementById('investmentsContainer');
-    if (!container) return;
-
-    if (!investments || investments.length === 0) {
-      container.innerHTML = `<div class="empty-investments glass" style="grid-column: 1 / -1;">
-        Active investments will appear here. <a href="investment.html">Start investing</a>
-      </div>`;
-      return;
-    }
-
-    const sorted = [...investments].sort((a, b) => {
-      if (a.status === 'active' && b.status !== 'active') return -1;
-      if (a.status !== 'active' && b.status === 'active') return 1;
-      return 0;
-    });
-
-    container.innerHTML = sorted.map(inv => {
-      const isActive = inv.status === 'active';
-      const maturityDate = inv.maturityDate?.toDate ? inv.maturityDate.toDate() : new Date(inv.maturityDate);
-      const progress = calculateProgress(inv);
-      const time = getTimeRemaining(maturityDate);
-      const fmt = (n) => (n || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-
-      return `<article class="glass inv-track-card" data-inv-id="${inv.id}" data-maturity="${maturityDate.toISOString()}" data-duration-hours="${inv.durationHours || 0}" data-start="${inv.startDate?.seconds || 0}">
-        <div class="inv-track-header">
-          <span class="inv-track-plan">${inv.animalType || 'Investment'}</span>
-          <span class="inv-track-status ${inv.status}">${inv.status}</span>
-        </div>
-        <div class="inv-track-body">
-          <div class="inv-track-row">
-            <span class="inv-track-label">Invested</span>
-            <span class="inv-track-value">GHS ${fmt(inv.amount)}</span>
-          </div>
-          <div class="inv-track-row">
-            <span class="inv-track-label">Expected Return</span>
-            <span class="inv-track-value return-amount">GHS ${fmt(inv.expectedReturn || inv.amount)}</span>
-          </div>
-          <div class="inv-track-row">
-            <span class="inv-track-label">ROI</span>
-            <span class="inv-track-value" style="color: var(--amber);">${inv.roiPercent ? inv.roiPercent.toFixed(1) + '%' : '—'}</span>
-          </div>
-          ${isActive ? `
-          <div class="inv-track-countdown" data-countdown="${inv.id}">
-            <div class="countdown-unit">
-              <div class="countdown-number" data-days>${time.days}</div>
-              <div class="countdown-label">Days</div>
-            </div>
-            <div class="countdown-unit">
-              <div class="countdown-number" data-hours>${time.hours}</div>
-              <div class="countdown-label">Hours</div>
-            </div>
-            <div class="countdown-unit">
-              <div class="countdown-number" data-mins>${time.minutes}</div>
-              <div class="countdown-label">Mins</div>
-            </div>
-            <div class="countdown-unit">
-              <div class="countdown-number" data-secs>${time.seconds}</div>
-              <div class="countdown-label">Secs</div>
-            </div>
-          </div>
-          <div class="inv-track-progress">
-            <div class="inv-track-progress-label">
-              <span>Progress</span>
-              <span>${progress.toFixed(1)}%</span>
-            </div>
-            <div class="progress">
-              <div class="progress-fill" style="width:${progress}%"></div>
-            </div>
-          </div>
-          <div class="inv-track-row">
-            <span class="inv-track-label">Matures</span>
-            <span class="inv-track-value" style="font-size:0.82rem;">${maturityDate.toLocaleString(undefined, {month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
-          </div>
-          ` : `
-          <div class="inv-track-row">
-            <span class="inv-track-label">Payout</span>
-            <span class="inv-track-value return-amount">GHS ${fmt(inv.payoutAmount || inv.expectedReturn || inv.amount)}</span>
-          </div>
-          `}
-        </div>
-      </article>`;
-    }).join('');
-  }
-
-  function getTimeRemaining(maturityDate) {
-    const maturityMs = maturityDate instanceof Date ? maturityDate.getTime() : new Date(maturityDate).getTime();
-    const now = Date.now();
-    const diff = maturityMs - now;
-
-    if (diff <= 0) {
-      return { days: 0, hours: 0, minutes: 0, seconds: 0 };
-    }
-
-    return {
-      days: Math.floor(diff / 86400000),
-      hours: Math.floor((diff % 86400000) / 3600000),
-      minutes: Math.floor((diff % 3600000) / 60000),
-      seconds: Math.floor((diff % 60000) / 1000)
-    };
-  }
-
-  function calculateProgress(inv) {
-    const maturityMs = inv.maturityDate?.toDate ? inv.maturityDate.toDate().getTime() : new Date(inv.maturityDate).getTime();
-    const startMs = inv.startDate?.seconds ? inv.startDate.seconds * 1000 : (maturityMs - (inv.durationHours * 3600000));
-    const now = Date.now();
-    const total = maturityMs - startMs;
-    const elapsed = now - startMs;
-    if (total <= 0) return 100;
-    return Math.min(100, Math.max(0, (elapsed / total) * 100));
-  }
-
-  function startCountdowns() {
-    if (countdownInterval) clearInterval(countdownInterval);
-    countdownInterval = setInterval(() => {
-      document.querySelectorAll('[data-countdown]').forEach(el => {
-        const maturityStr = el.closest('.inv-track-card').dataset.maturity;
-        const maturityDate = new Date(maturityStr);
-        const time = getTimeRemaining(maturityDate);
-
-        const daysEl = el.querySelector('[data-days]');
-        const hoursEl = el.querySelector('[data-hours]');
-        const minsEl = el.querySelector('[data-mins]');
-        const secsEl = el.querySelector('[data-secs]');
-
-        if (daysEl) daysEl.textContent = time.days;
-        if (hoursEl) hoursEl.textContent = time.hours;
-        if (minsEl) minsEl.textContent = time.minutes;
-        if (secsEl) secsEl.textContent = time.seconds;
-      });
-    }, 1000);
-  }
-
-  // 🔥 SETUP REAL-TIME LISTENERS
+  // Setup real-time listeners
   function setupRealTimeListeners(uid) {
     console.log("[Dashboard] Setting up real-time listeners...");
     
-    // User data listener
     const userRef = doc(db, "users", uid);
     onSnapshot(userRef, (docSnap) => {
+      console.log("[Dashboard] 🔄 Real-time snapshot received");
       if (docSnap.exists()) {
         const data = docSnap.data();
         console.log("[Dashboard] 🔄 Real-time update - Wallet:", data.walletBalance);
         updateUI(data);
       }
+    }, (error) => {
+      console.error("[Dashboard] Listener error:", error);
     });
 
     // Transactions listener
@@ -589,6 +454,7 @@
     );
 
     onSnapshot(txQuery, (snapshot) => {
+      console.log("[Dashboard] 📋 Transactions snapshot:", snapshot.size);
       const txContainer = document.getElementById('txContainer');
       if (!txContainer) return;
 
@@ -598,43 +464,34 @@
         txContainer.innerHTML = snapshot.docs.map(doc => {
           const t = doc.data();
           const isDeposit = t.type === 'deposit';
-          const isInvestment = t.type === 'investment';
           const date = t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
-          const color = isDeposit ? 'positive' : isInvestment ? 'warning' : 'warning';
-          const sign = isDeposit ? '+' : '-';
-          return `<div class="activity-row"><div><strong>${t.type}</strong>${t.animalType ? `<br><small style="color:var(--amber)">${t.animalType}</small>` : ''}<br><small>${date}</small></div><div class="${color}">${sign}GHS ${t.amount}</div></div>`;
+          return `<div class="activity-row"><div><strong>${t.type}</strong>${t.animalType ? `<br><small style="color:var(--amber)">${t.animalType}</small>` : ''}<br><small>${date}</small></div><div class="${isDeposit ? 'positive' : 'warning'}">${isDeposit ? '+' : '-'}GHS ${t.amount}</div></div>`;
         }).join('');
       }
-    });
-
-    // 🔥 INVESTMENTS LISTENER - This is the key addition!
-    const invQuery = query(
-      collection(db, "investments"),
-      where("userId", "==", uid)
-    );
-
-    onSnapshot(invQuery, (snapshot) => {
-      console.log("[Dashboard] 💼 Investments snapshot:", snapshot.size);
-      const investments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      renderInvestments(investments);
-      startCountdowns();
     });
   }
 
   // Initialize
   auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
+    if (!user) {
+      console.log("[Dashboard] No user");
+      return;
+    }
 
     console.log("[Dashboard] User authenticated:", user.uid);
     
+    // Wait 2 seconds to ensure Paystack has time to write to Firestore
+    console.log("[Dashboard] ⏳ Waiting 2s for Firestore sync...");
     await new Promise(r => setTimeout(r, 2000));
     
+    // Load fresh data
     const data = await loadUserData(user.uid);
     
     if (data) {
       updateUI(data);
     }
     
+    // Setup real-time listeners for future updates
     setupRealTimeListeners(user.uid);
   });
 </script>
