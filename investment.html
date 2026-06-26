@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invest | AgriWealth</title>
+  <title>Invest | Pocket Invest</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -18,7 +20,7 @@
     
     .invest-card:hover {
       transform: translateY(-8px);
-      box-shadow: var(--shadow-lg), 0 0 40px rgba(200,150,28,0.2);
+      box-shadow: var(--shadow-lg), 0 0 40px rgba(37,99,235,0.24);
     }
     
     .invest-media {
@@ -42,7 +44,7 @@
     .invest-media-overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(to top, rgba(26,58,42,0.9) 0%, rgba(26,58,42,0.4) 40%, transparent 100%);
+      background: linear-gradient(to top, rgba(15,23,42,0.92) 0%, rgba(30,58,138,0.44) 40%, transparent 100%);
       pointer-events: none;
     }
     
@@ -50,8 +52,8 @@
       position: absolute;
       top: 12px;
       right: 12px;
-      background: var(--gradient-gold);
-      color: var(--forest);
+      background: linear-gradient(135deg, var(--blue), var(--blue-light));
+      color: var(--white);
       font-weight: 700;
       padding: 6px 14px;
       border-radius: 20px;
@@ -64,7 +66,7 @@
       position: absolute;
       top: 12px;
       left: 12px;
-      background: rgba(82,183,136,0.95);
+      background: rgba(37,99,235,0.95);
       color: white;
       font-weight: 600;
       padding: 4px 12px;
@@ -180,7 +182,7 @@
 <body>
   <nav>
     <div class="container">
-      <a href="dashboard.html" class="logo">AgriWealth</a>
+      <a href="dashboard.html" class="logo">Pocket Invest</a>
       <button class="menu-btn" type="button" aria-label="Open navigation">Menu</button>
       <div class="nav-links">
         <a href="dashboard.html">Dashboard</a>
@@ -194,8 +196,8 @@
     <section class="market-hero glass anim">
       <div>
         <span class="eyebrow">Investment Marketplace</span>
-        <h1 class="page-title">Curated farm assets with premium visibility.</h1>
-        <p class="page-sub">Choose agriculture-backed opportunities across animals, aquaculture, and crops.</p>
+        <h1 class="page-title">Curated opportunities with premium visibility.</h1>
+        <p class="page-sub">Choose investment plans with clear ROI, duration, risk, and wallet funding.</p>
       </div>
       <div class="asset-marquee" aria-hidden="true">
         <span>Poultry</span><span>Catfish</span><span>Pig</span><span>Goat</span><span>Calf</span><span>Snail</span><span>Dairy Cow</span><span>Bull</span><span>Buffalo</span><span>Crops</span>
@@ -203,9 +205,9 @@
     </section>
 
     <section class="featured-strip" aria-label="Featured livestock">
-      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Poultry farm">
-      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Fish farming">
-      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1616109259043-fd30a7663a5d?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Pig farming">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Poultry investment">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Catfish investment">
+      <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1616109259043-fd30a7663a5d?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Pig investment">
       <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=600&q=75" width="600" height="180" alt="Crop field">
     </section>
 
@@ -224,7 +226,7 @@
     <div class="glass modal-content invest-modal-card">
       <span class="eyebrow">Confirm Allocation</span>
       <h3>Invest in <span id="modalAsset"></span></h3>
-      <p class="modal-copy">Enter the amount you want to allocate to this agriculture asset.</p>
+      <p class="modal-copy">Enter the amount you want to allocate to this investment plan.</p>
       <input type="number" class="input" placeholder="Amount (GHS)" id="investAmount" min="100">
       <div id="roiPreview" class="roi-preview" style="display:none;">
         <div class="roi-preview-row">
@@ -514,5 +516,3 @@
 </script>
 </body>
 </html>
-
-

@@ -6,7 +6,9 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Dashboard | AgriWealth</title>
+  <title>Dashboard | Pocket Invest</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -40,14 +42,14 @@
       letter-spacing: 0.05em;
     }
     .inv-track-status.active {
-      background: rgba(82,183,136,0.18);
+      background: rgba(37,99,235,0.20);
       color: var(--bright);
-      border: 1px solid rgba(82,183,136,0.3);
+      border: 1px solid rgba(96,165,250,0.34);
     }
     .inv-track-status.completed {
-      background: rgba(233,184,74,0.18);
+      background: rgba(96,165,250,0.18);
       color: var(--amber);
-      border: 1px solid rgba(233,184,74,0.3);
+      border: 1px solid rgba(147,197,253,0.34);
     }
     .inv-track-body {
       padding: 16px 20px;
@@ -155,8 +157,8 @@
       right: 24px;
       max-width: 380px;
       padding: 16px 20px;
-      background: rgba(26,58,42,0.95);
-      border: 1px solid rgba(82,183,136,0.4);
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(96,165,250,0.42);
       border-radius: 16px;
       box-shadow: 0 20px 50px rgba(0,0,0,0.35);
       backdrop-filter: blur(20px);
@@ -193,7 +195,7 @@
 <body>
   <nav>
     <div class="container">
-      <a href="dashboard.html" class="logo">AgriWealth</a>
+      <a href="dashboard.html" class="logo">Pocket Invest</a>
       <button class="menu-btn" type="button" aria-label="Open navigation">Menu</button>
       <div class="nav-links">
         <a href="investment.html">Invest</a>
@@ -208,15 +210,15 @@
     <section class="dashboard-hero glass anim">
       <div>
         <span class="eyebrow">Portfolio Command Center</span>
-        <h1 class="page-title">Your agriculture wealth dashboard.</h1>
-        <p class="page-sub">Monitor capital, active assets, deposits, and farm growth from one polished workspace.</p>
+        <h1 class="page-title">Your Pocket Invest dashboard.</h1>
+        <p class="page-sub">Monitor wallet balance, active assets, deposits, ROI, and growth from one polished workspace.</p>
         <div class="hero-cta">
           <a href="investment.html" class="btn">Add Investment</a>
           <a href="payment.html" class="btn btn-outline">Deposit Funds</a>
         </div>
       </div>
       <div class="dashboard-visual" aria-hidden="true">
-        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=800&q=75" width="800" height="500" alt="">
+        <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1642052502780-8ee67e3fb92b?auto=format&fit=crop&w=800&q=75" width="800" height="500" alt="">
         <div class="floating-badge">Live Portfolio</div>
       </div>
     </section>
@@ -332,7 +334,7 @@
     <section class="grid grid-3 quick-actions" aria-label="Quick actions">
       <a href="investment.html" class="glass action-card">
         <span>Explore Assets</span>
-        <strong>Livestock, aquaculture, crops</strong>
+        <strong>Plans, ROI, duration</strong>
       </a>
       <a href="payment.html" class="glass action-card">
         <span>Secure Deposit</span>
